@@ -1,25 +1,15 @@
-import { ChevronRight } from "lucide-react";
 import * as React from "react";
 
 import { SearchForm } from "@/components/search-form";
 import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "@/components/ui/collapsible";
-import {
   Sidebar,
   SidebarContent,
-  SidebarGroup,
-  SidebarGroupContent,
-  SidebarGroupLabel,
   SidebarHeader,
-  SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarRail,
 } from "@/components/ui/sidebar";
-import { VersionSwitcher } from "@/components/version-switcher";
+import { Button } from "./ui/button";
 
 // This is sample data.
 const data = {
@@ -163,50 +153,40 @@ const data = {
   ],
 };
 
-export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
+interface AppSidebarProps extends React.ComponentProps<typeof Sidebar> {
+  sessions: { id: string; name: string }[];
+  currentSession: { id: string; name: string } | null;
+  onSessionChange: ({ id, name }: { id: string; name: string }) => void;
+}
+
+export function AppSidebar({ ...props }: AppSidebarProps) {
+  console.log("Rendering AppSidebar with props:", props.sessions);
   return (
     <Sidebar {...props}>
       <SidebarHeader>
-        <VersionSwitcher
-          versions={data.versions}
-          defaultVersion={data.versions[0]}
-        />
+        <Button
+          variant="default"
+          className="w-full"
+          onClick={() => {
+            props.onSessionChange({ id: "-1", name: "New Chat" });
+          }}
+        >
+          New Chat
+        </Button>
         <SearchForm />
       </SidebarHeader>
       <SidebarContent className="gap-0">
         {/* We create a collapsible SidebarGroup for each parent. */}
-        {data.navMain.map((item) => (
-          <Collapsible
-            key={item.title}
-            title={item.title}
-            defaultOpen
-            className="group/collapsible"
-          >
-            <SidebarGroup>
-              <SidebarGroupLabel
-                asChild
-                className="group/label text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground text-sm"
-              >
-                <CollapsibleTrigger>
-                  {item.title}{" "}
-                  <ChevronRight className="ml-auto transition-transform group-data-[state=open]/collapsible:rotate-90" />
-                </CollapsibleTrigger>
-              </SidebarGroupLabel>
-              <CollapsibleContent>
-                <SidebarGroupContent>
-                  <SidebarMenu>
-                    {item.items.map((item) => (
-                      <SidebarMenuItem key={item.title}>
-                        <SidebarMenuButton asChild isActive={item.isActive}>
-                          <a href={item.url}>{item.title}</a>
-                        </SidebarMenuButton>
-                      </SidebarMenuItem>
-                    ))}
-                  </SidebarMenu>
-                </SidebarGroupContent>
-              </CollapsibleContent>
-            </SidebarGroup>
-          </Collapsible>
+        {props.sessions.map((item) => (
+          <SidebarMenuItem key={item.id} className="hover:bg-accent">
+            <SidebarMenuButton
+              asChild
+              onClick={() => props.onSessionChange(item)}
+              isActive={props.currentSession?.id === item.id}
+            >
+              <span>{item.name}</span>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
         ))}
       </SidebarContent>
       <SidebarRail />

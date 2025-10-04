@@ -4,6 +4,7 @@ import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { Textarea } from "@/components/ui/textarea";
 import { Send } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+import Markdown from "react-markdown";
 
 function Chat() {
   const [ready, setReady] = useState(false);
@@ -12,6 +13,7 @@ function Chat() {
   const [progressItems, setProgressItems] = useState<ProgressItem[]>([]);
 
   // Inputs and outputs
+  const [streaming, setStreaming] = useState(false);
   const [output, setOutput] = useState("");
 
   const worker = useRef<Worker | null>(null);
@@ -21,24 +23,21 @@ function Chat() {
     if (!worker.current) {
       // Create the worker if it does not yet exist.
       worker.current = new Worker(
-        new URL("./workers/worker.ts", import.meta.url),
+        new URL("../workers/chatWorker.ts", import.meta.url),
         {
           type: "module",
         }
       );
     }
 
-    // Create a callback function for messages from the worker thread.
     const onMessageReceived = (e: MessageEvent) => {
       switch (e.data.status) {
         case "initiate":
-          // Model file start load: add a new progress item to the list.
           setReady(false);
           setProgressItems((prev) => [...prev, e.data]);
           break;
 
         case "progress":
-          // Model file progress: update one of the progress items.
           setProgressItems((prev) =>
             prev.map((item) => {
               if (item.file === e.data.file) {
@@ -50,28 +49,25 @@ function Chat() {
           break;
 
         case "done":
-          // Model file loaded: remove the progress item from the list.
           setProgressItems((prev) =>
             prev.filter((item) => item.file !== e.data.file)
           );
           break;
 
         case "ready":
-          // Pipeline ready: the worker is ready to accept messages.
           setReady(true);
           break;
 
         case "update":
-          // Generation update: update the output text.
-          console.log(e.data.output);
-          setOutput(e.data.output[0].translation_text);
+          setOutput((prev) => prev + e.data.output);
+          setStreaming(true);
           break;
 
         case "complete":
-          // Generation complete: re-enable the "Translate" button
-          setOutput(e.data.output[0].translation_text);
-          console.log(e.data.output[0].translation_text);
+          setMessages(e.data.output);
           setDisabled(false);
+          setStreaming(false);
+          setOutput("");
           break;
       }
     };
@@ -86,16 +82,129 @@ function Chat() {
     };
   }, []);
 
+  const testMessages: Message[] = [
+    { role: "user", content: "Hello, how are you?" },
+    {
+      role: "assistant",
+      content: "I'm good, thank you! How can I assist you?",
+    },
+    { role: "user", content: "Can you tell me a joke?" },
+    {
+      role: "assistant",
+      content:
+        "Sure! Why don't scientists trust atoms? Because they make up everything!",
+    },
+  ];
+
+  const testSessions = [
+    { id: "1", name: "Session 1" },
+    { id: "2", name: "Session 2" },
+  ];
+  const [messages, setMessages] = useState<Message[]>(testMessages);
+  const [sessions, setSessions] =
+    useState<{ id: string; name: string }[]>(testSessions);
+  const [currentSession, setCurrentSession] = useState<{
+    id: string;
+    name: string;
+  } | null>(null);
+
+  function updateSessions(newSession: { id: string; name: string }) {
+    setSessions((prevSessions) => [...prevSessions, newSession]);
+  }
+
+  function updateMessages(newMessage: Message) {
+    setMessages((prevMessages) => [...prevMessages, newMessage]);
+  }
+
+  function handleSend(message: string) {
+    if (currentSession === null) {
+      const newSession = {
+        id: Date.now().toString(),
+        name: message.slice(0, 20),
+      };
+      setCurrentSession(newSession);
+      updateSessions(newSession);
+      saveSessions([...sessions, newSession]);
+    }
+    const newMessage: Message = { role: "user", content: message };
+    updateMessages(newMessage);
+
+    worker.current?.postMessage({
+      type: "chat:message",
+      messages: [...messages, newMessage],
+    });
+  }
+
+  function saveSessions(sessions: { id: string; name: string }[]) {
+    localStorage.setItem("chat-sessions", JSON.stringify(sessions));
+  }
+
+  function handleSessionChange(sessionId: { id: string; name: string }) {
+    setCurrentSession(sessionId);
+  }
+
+  function localSessions() {
+    const sessions = localStorage.getItem("chat-sessions");
+    if (sessions) {
+      return JSON.parse(sessions);
+    }
+  }
+
+  function localMessages(currentSession: { id: string; name: string } | null) {
+    const messages = localStorage.getItem(
+      "chat-messages:" + currentSession?.id
+    );
+    if (messages) {
+      return JSON.parse(messages);
+    }
+  }
+
+  useEffect(() => {
+    const savedSessions = localSessions();
+    if (savedSessions) {
+      setSessions(savedSessions);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (currentSession) {
+      const savedMessages = localMessages(currentSession);
+      console.log(
+        "Loaded messages for session",
+        currentSession.id,
+        savedMessages
+      );
+      if (savedMessages) {
+        setMessages(savedMessages);
+      } else {
+        setMessages([]);
+      }
+    }
+  }, [currentSession]);
+
+  useEffect(() => {
+    if (currentSession) {
+      localStorage.setItem(
+        "chat-messages:" + currentSession.id,
+        JSON.stringify(messages)
+      );
+    }
+  }, [messages, currentSession]);
+
   return (
     <>
       {" "}
       <div>
         <SidebarProvider>
-          <AppSidebar />
+          <AppSidebar
+            sessions={sessions}
+            currentSession={currentSession}
+            onSessionChange={handleSessionChange}
+          />
           <SidebarTrigger />
           <div className="p-4 w-full h-screen flex flex-col gap-4 justify-between">
-            <div>Chat Page</div>
-            <UserInput />
+            <UserChat messages={messages} output={output} streaming={true} />
+            <UserInput onSend={handleSend} />
           </div>
         </SidebarProvider>
       </div>
@@ -103,18 +212,92 @@ function Chat() {
   );
 }
 
-function UserInput() {
+interface UserInputProps {
+  onSend?: (message: string) => void;
+}
+function UserInput(props: UserInputProps) {
+  const [input, setInput] = useState("");
+
+  function handleSend() {
+    // Implement send functionality here
+    console.log("Send button clicked");
+    if (props.onSend) {
+      props.onSend(input);
+    }
+    setInput("");
+  }
+
+  function handleKeyDown(event: React.KeyboardEvent<HTMLTextAreaElement>) {
+    if (event.key === "Enter" && !event.shiftKey) {
+      event.preventDefault();
+      handleSend();
+    }
+  }
   return (
     <div className="w-full flex flex-col gap-2 md:flex-row focus-within:ring-2 focus-within:ring-secondary focus-within:ring-offset-2 focus-within:ring-offset-background p-4 rounded-md border border-input">
       <Textarea
         placeholder="Type your text here..."
+        value={input}
+        onChange={(e) => setInput(e.target.value)}
+        onKeyDown={handleKeyDown}
         className="w-full max-h-40 min-h-10 border-0 resize-none focus-visible:ring-0 focus-visible:outline-none focus-visible:shadow-none focus-visible:border-0"
       />
       <div className="flex justify-end flex-col">
-        <Button>
+        <Button onClick={handleSend} className="ml-2 " disabled={!input.trim()}>
           <Send />
         </Button>
       </div>
+    </div>
+  );
+}
+
+interface Message {
+  role: "user" | "assistant" | "system";
+  content: string;
+}
+function UserChat(props: {
+  messages?: Message[];
+  output: string;
+  streaming?: boolean;
+}) {
+  return (
+    <div className="flex-1 overflow-y-auto mb-4 h-fit pr-2">
+      {props.messages?.map((msg, index) => (
+        <div
+          key={index}
+          className={`${
+            msg.role === "user" ? "flex-row-reverse" : ""
+          } flex justify-startgap-2 mb-2 items-center`}
+        >
+          <div>
+            <b>{msg.role === "user" ? "You" : "AI"}</b>
+          </div>
+          <div
+            key={index}
+            className={` ${
+              msg.role === "user" ? "shadow " : "bg-muted"
+            } p-4 rounded-lg mb-2 max-w-lg ${
+              msg.role === "user" ? "ml-auto" : ""
+            }`}
+          >
+            <div className="chat-message-content">
+              <Markdown>{msg.content}</Markdown>
+            </div>
+          </div>
+        </div>
+      ))}
+      {props.streaming && (
+        <div className="flex justify-start gap-2 mb-2 items-center">
+          <div>
+            <b>AI</b>
+          </div>
+          <div className="bg-muted p-4 rounded-lg mb-2 max-w-lg">
+            <div className="chat-message-content">
+              <Markdown>{props.output}</Markdown>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
