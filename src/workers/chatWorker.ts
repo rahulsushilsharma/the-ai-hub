@@ -46,7 +46,6 @@ self.addEventListener("message", async (event) => {
         }),
       });
 
-      console.log(output1);
       self.postMessage({
         status: "complete",
         output: output1[0].generated_text,
