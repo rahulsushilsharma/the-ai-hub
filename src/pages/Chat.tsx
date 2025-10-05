@@ -64,7 +64,7 @@ function Chat() {
           break;
 
         case "complete":
-          setMessages(e.data.output);
+          setMessages(e.data.output.generated_text);
           setDisabled(false);
           setStreaming(false);
           setOutput("");
@@ -203,7 +203,14 @@ function Chat() {
           />
           <SidebarTrigger />
           <div className="p-4 w-full h-screen flex flex-col gap-4 justify-between">
-            <UserChat messages={messages} output={output} streaming={true} />
+            <UserChat
+              messages={messages}
+              output={output}
+              streaming={streaming}
+            />
+            {JSON.stringify(progressItems)}
+            {JSON.stringify(ready)}
+            {JSON.stringify(disabled)}
             <UserInput onSend={handleSend} />
           </div>
         </SidebarProvider>

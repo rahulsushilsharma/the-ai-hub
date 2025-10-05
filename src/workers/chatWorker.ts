@@ -48,7 +48,7 @@ self.addEventListener("message", async (event) => {
 
       self.postMessage({
         status: "complete",
-        output: output1[0].generated_text,
+        output: output1[0],
       });
     }
   }
