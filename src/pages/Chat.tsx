@@ -1,7 +1,9 @@
 import { AppSidebar } from "@/components/app-sidebar";
+import ModelLoading from "@/components/ModelLoading";
 import { Button } from "@/components/ui/button";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { Textarea } from "@/components/ui/textarea";
+import type { ProgressInfo } from "@huggingface/transformers";
 import { Send } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import Markdown from "react-markdown";
@@ -15,7 +17,7 @@ function Chat() {
   // Inputs and outputs
   const [streaming, setStreaming] = useState(false);
   const [output, setOutput] = useState("");
-
+  const [progress, setProgress] = useState<ProgressInfo | null>(null);
   const worker = useRef<Worker | null>(null);
 
   // We use the `useEffect` hook to setup the worker as soon as the `App` component is mounted.
@@ -33,11 +35,18 @@ function Chat() {
     const onMessageReceived = (e: MessageEvent) => {
       switch (e.data.status) {
         case "initiate":
+          setProgress(e.data as ProgressInfo);
+          setOpenProgress(true);
+
           setReady(false);
           setProgressItems((prev) => [...prev, e.data]);
           break;
 
         case "progress":
+          setOpenProgress(true);
+
+          setProgress(e.data as ProgressInfo);
+
           setProgressItems((prev) =>
             prev.map((item) => {
               if (item.file === e.data.file) {
@@ -49,21 +58,33 @@ function Chat() {
           break;
 
         case "done":
+          setOpenProgress(true);
+
+          setProgress(e.data as ProgressInfo);
+
           setProgressItems((prev) =>
             prev.filter((item) => item.file !== e.data.file)
           );
           break;
 
         case "ready":
+          setOpenProgress(true);
+
+          setProgress(e.data as ProgressInfo);
+
           setReady(true);
           break;
 
         case "update":
+          setOpenProgress(false);
+
           setOutput((prev) => prev + e.data.output);
           setStreaming(true);
           break;
 
         case "complete":
+          setOpenProgress(false);
+
           setMessages(e.data.output.generated_text);
           setDisabled(false);
           setStreaming(false);
@@ -83,6 +104,7 @@ function Chat() {
   }, []);
 
   const testMessages: Message[] = [
+    { role: "system", content: "You are a helpful assistant." },
     { role: "user", content: "Hello, how are you?" },
     {
       role: "assistant",
@@ -190,6 +212,7 @@ function Chat() {
       );
     }
   }, [messages, currentSession]);
+  const [openProgress, setOpenProgress] = useState(false);
 
   return (
     <>
@@ -211,6 +234,11 @@ function Chat() {
             {JSON.stringify(progressItems)}
             {JSON.stringify(ready)}
             {JSON.stringify(disabled)}
+            <ModelLoading
+              progress={progress}
+              open={openProgress}
+              onOpenChange={setOpenProgress}
+            />
             <UserInput onSend={handleSend} />
           </div>
         </SidebarProvider>
