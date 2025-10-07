@@ -15,6 +15,8 @@ function Chat() {
   const [streaming, setStreaming] = useState(false);
   const [output, setOutput] = useState("");
   const [progress, setProgress] = useState<ProgressStatusInfo | null>(null);
+  const [openProgress, setOpenProgress] = useState(false);
+
   const worker = useRef<Worker | null>(null);
 
   const sessions = useAppStore((state) => state.sessions);
@@ -114,7 +116,6 @@ function Chat() {
 
   function localSessions() {
     const sessions = localStorage.getItem("chat-sessions");
-    console.log("Loaded sessions from localStorage", sessions);
     if (sessions) {
       return JSON.parse(sessions);
     }
@@ -131,7 +132,6 @@ function Chat() {
 
   useEffect(() => {
     const savedSessions = localSessions();
-    console.log("Loaded sessions", savedSessions);
     if (savedSessions) {
       setSessions(savedSessions);
     }
@@ -140,17 +140,12 @@ function Chat() {
   useEffect(() => {
     if (sessions.length > 0)
       localStorage.setItem("chat-sessions", JSON.stringify(sessions));
-    console.log("Saved sessions", sessions);
   }, [sessions]);
 
   useEffect(() => {
     if (currentSession) {
       const savedMessages = localMessages(currentSession);
-      console.log(
-        "Loaded messages for session",
-        currentSession.id,
-        savedMessages
-      );
+
       setMessages(savedMessages);
     } else {
       setMessages([]);
@@ -165,7 +160,6 @@ function Chat() {
       );
     }
   }, [messages, currentSession]);
-  const [openProgress, setOpenProgress] = useState(false);
 
   return (
     <>
@@ -201,8 +195,6 @@ function UserInput(props: UserInputProps) {
   const [input, setInput] = useState("");
 
   function handleSend() {
-    // Implement send functionality here
-    console.log("Send button clicked");
     if (props.onSend) {
       props.onSend(input);
     }
