@@ -3,8 +3,10 @@ import ModelLoading from "@/components/ModelLoading";
 import { Button } from "@/components/ui/button";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { Textarea } from "@/components/ui/textarea";
-import type { ProgressInfo } from "@huggingface/transformers";
+import { useAppStore } from "@/services/uiStore";
+import type { Message } from "@/types/types";
 import { Send } from "lucide-react";
+import type { ProgressStatusInfo } from "node_modules/@huggingface/transformers/types/utils/core";
 import { useEffect, useRef, useState } from "react";
 import Markdown from "react-markdown";
 
@@ -17,8 +19,15 @@ function Chat() {
   // Inputs and outputs
   const [streaming, setStreaming] = useState(false);
   const [output, setOutput] = useState("");
-  const [progress, setProgress] = useState<ProgressInfo | null>(null);
+  const [progress, setProgress] = useState<ProgressStatusInfo | null>(null);
   const worker = useRef<Worker | null>(null);
+
+  const sessions = useAppStore((state) => state.sessions);
+  const setSessions = useAppStore((state) => state.setSessions);
+  const currentSession = useAppStore((state) => state.currentSession);
+  const setCurrentSession = useAppStore((state) => state.setCurrentSession);
+  const messages = useAppStore((state) => state.messages);
+  const setMessages = useAppStore((state) => state.setMessages);
 
   // We use the `useEffect` hook to setup the worker as soon as the `App` component is mounted.
   useEffect(() => {
@@ -35,7 +44,7 @@ function Chat() {
     const onMessageReceived = (e: MessageEvent) => {
       switch (e.data.status) {
         case "initiate":
-          setProgress(e.data as ProgressInfo);
+          setProgress(e.data as ProgressStatusInfo);
           setOpenProgress(true);
 
           setReady(false);
@@ -45,7 +54,7 @@ function Chat() {
         case "progress":
           setOpenProgress(true);
 
-          setProgress(e.data as ProgressInfo);
+          setProgress(e.data as ProgressStatusInfo);
 
           setProgressItems((prev) =>
             prev.map((item) => {
@@ -60,7 +69,7 @@ function Chat() {
         case "done":
           setOpenProgress(true);
 
-          setProgress(e.data as ProgressInfo);
+          setProgress(e.data as ProgressStatusInfo);
 
           setProgressItems((prev) =>
             prev.filter((item) => item.file !== e.data.file)
@@ -70,7 +79,7 @@ function Chat() {
         case "ready":
           setOpenProgress(true);
 
-          setProgress(e.data as ProgressInfo);
+          setProgress(e.data as ProgressStatusInfo);
 
           setReady(true);
           break;
@@ -101,41 +110,14 @@ function Chat() {
       if (worker.current)
         worker.current.removeEventListener("message", onMessageReceived);
     };
-  }, []);
-
-  const testMessages: Message[] = [
-    { role: "system", content: "You are a helpful assistant." },
-    { role: "user", content: "Hello, how are you?" },
-    {
-      role: "assistant",
-      content: "I'm good, thank you! How can I assist you?",
-    },
-    { role: "user", content: "Can you tell me a joke?" },
-    {
-      role: "assistant",
-      content:
-        "Sure! Why don't scientists trust atoms? Because they make up everything!",
-    },
-  ];
-
-  const testSessions = [
-    { id: "1", name: "Session 1" },
-    { id: "2", name: "Session 2" },
-  ];
-  const [messages, setMessages] = useState<Message[]>(testMessages);
-  const [sessions, setSessions] =
-    useState<{ id: string; name: string }[]>(testSessions);
-  const [currentSession, setCurrentSession] = useState<{
-    id: string;
-    name: string;
-  } | null>(null);
+  }, [setMessages]);
 
   function updateSessions(newSession: { id: string; name: string }) {
-    setSessions((prevSessions) => [...prevSessions, newSession]);
+    setSessions([...sessions, newSession]);
   }
 
   function updateMessages(newMessage: Message) {
-    setMessages((prevMessages) => [...prevMessages, newMessage]);
+    setMessages([...messages, newMessage]);
   }
 
   function handleSend(message: string) {
@@ -146,9 +128,15 @@ function Chat() {
       };
       setCurrentSession(newSession);
       updateSessions(newSession);
-      saveSessions([...sessions, newSession]);
+      setSessions([...sessions, newSession]);
     }
-    const newMessage: Message = { role: "user", content: message };
+    const newMessage: Message = {
+      role: "user",
+      content: message,
+      id: Date.now().toString(),
+      sessionId: currentSession ? currentSession.id : "unknown",
+      timestamp: Date.now(),
+    };
     updateMessages(newMessage);
 
     worker.current?.postMessage({
@@ -157,16 +145,9 @@ function Chat() {
     });
   }
 
-  function saveSessions(sessions: { id: string; name: string }[]) {
-    localStorage.setItem("chat-sessions", JSON.stringify(sessions));
-  }
-
-  function handleSessionChange(sessionId: { id: string; name: string }) {
-    setCurrentSession(sessionId);
-  }
-
   function localSessions() {
     const sessions = localStorage.getItem("chat-sessions");
+    console.log("Loaded sessions from localStorage", sessions);
     if (sessions) {
       return JSON.parse(sessions);
     }
@@ -183,10 +164,17 @@ function Chat() {
 
   useEffect(() => {
     const savedSessions = localSessions();
+    console.log("Loaded sessions", savedSessions);
     if (savedSessions) {
       setSessions(savedSessions);
     }
-  }, []);
+  }, [setSessions]);
+
+  useEffect(() => {
+    if (sessions.length > 0)
+      localStorage.setItem("chat-sessions", JSON.stringify(sessions));
+    console.log("Saved sessions", sessions);
+  }, [sessions]);
 
   useEffect(() => {
     if (currentSession) {
@@ -196,13 +184,11 @@ function Chat() {
         currentSession.id,
         savedMessages
       );
-      if (savedMessages) {
-        setMessages(savedMessages);
-      } else {
-        setMessages([]);
-      }
+      setMessages(savedMessages);
+    } else {
+      setMessages([]);
     }
-  }, [currentSession]);
+  }, [currentSession, setMessages]);
 
   useEffect(() => {
     if (currentSession) {
@@ -219,11 +205,7 @@ function Chat() {
       {" "}
       <div>
         <SidebarProvider>
-          <AppSidebar
-            sessions={sessions}
-            currentSession={currentSession}
-            onSessionChange={handleSessionChange}
-          />
+          <AppSidebar />
           <SidebarTrigger />
           <div className="p-4 w-full h-screen flex flex-col gap-4 justify-between">
             <UserChat
@@ -286,10 +268,6 @@ function UserInput(props: UserInputProps) {
   );
 }
 
-interface Message {
-  role: "user" | "assistant" | "system";
-  content: string;
-}
 function UserChat(props: {
   messages?: Message[];
   output: string;

@@ -9,16 +9,14 @@ import {
   SidebarMenuItem,
   SidebarRail,
 } from "@/components/ui/sidebar";
+import { useAppStore } from "@/services/uiStore";
 import { Button } from "./ui/button";
 
-interface AppSidebarProps extends React.ComponentProps<typeof Sidebar> {
-  sessions: { id: string; name: string }[];
-  currentSession: { id: string; name: string } | null;
-  onSessionChange: ({ id, name }: { id: string; name: string }) => void;
-}
-
-export function AppSidebar({ ...props }: AppSidebarProps) {
-  console.log("Rendering AppSidebar with props:", props.sessions);
+export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
+  const sessions = useAppStore((state) => state.sessions);
+  const currentSession = useAppStore((state) => state.currentSession);
+  const setCurrentSession = useAppStore((state) => state.setCurrentSession);
+  const removeSession = useAppStore((state) => state.removeSession);
   return (
     <Sidebar {...props}>
       <SidebarHeader>
@@ -26,7 +24,7 @@ export function AppSidebar({ ...props }: AppSidebarProps) {
           variant="default"
           className="w-full"
           onClick={() => {
-            props.onSessionChange({ id: "-1", name: "New Chat" });
+            setCurrentSession(null);
           }}
         >
           New Chat
@@ -35,15 +33,23 @@ export function AppSidebar({ ...props }: AppSidebarProps) {
       </SidebarHeader>
       <SidebarContent className="gap-0">
         {/* We create a collapsible SidebarGroup for each parent. */}
-        {props.sessions.map((item) => (
-          <SidebarMenuItem key={item.id} className="hover:bg-accent">
+        {sessions.map((item) => (
+          <SidebarMenuItem key={item.id} className="hover:bg-accent flex group">
             <SidebarMenuButton
               asChild
-              onClick={() => props.onSessionChange(item)}
-              isActive={props.currentSession?.id === item.id}
+              onClick={() => setCurrentSession(item)}
+              isActive={currentSession?.id === item.id}
             >
               <span>{item.name}</span>
             </SidebarMenuButton>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="opacity-0 group-hover:opacity-100 transition-opacity"
+              onClick={() => removeSession(item.id)}
+            >
+              ×
+            </Button>
           </SidebarMenuItem>
         ))}
       </SidebarContent>
