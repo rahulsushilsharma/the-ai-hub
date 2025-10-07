@@ -1,6 +1,5 @@
 import * as React from "react";
 
-import { SearchForm } from "@/components/search-form";
 import {
   Sidebar,
   SidebarContent,
@@ -29,7 +28,6 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         >
           New Chat
         </Button>
-        <SearchForm />
       </SidebarHeader>
       <SidebarContent className="gap-0">
         {/* We create a collapsible SidebarGroup for each parent. */}

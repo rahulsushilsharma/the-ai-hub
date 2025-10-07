@@ -11,11 +11,6 @@ import { useEffect, useRef, useState } from "react";
 import Markdown from "react-markdown";
 
 function Chat() {
-  const [ready, setReady] = useState(false);
-  const [disabled, setDisabled] = useState(false);
-  type ProgressItem = { file: string; progress?: number; status?: string };
-  const [progressItems, setProgressItems] = useState<ProgressItem[]>([]);
-
   // Inputs and outputs
   const [streaming, setStreaming] = useState(false);
   const [output, setOutput] = useState("");
@@ -29,10 +24,8 @@ function Chat() {
   const messages = useAppStore((state) => state.messages);
   const setMessages = useAppStore((state) => state.setMessages);
 
-  // We use the `useEffect` hook to setup the worker as soon as the `App` component is mounted.
   useEffect(() => {
     if (!worker.current) {
-      // Create the worker if it does not yet exist.
       worker.current = new Worker(
         new URL("../workers/chatWorker.ts", import.meta.url),
         {
@@ -46,66 +39,40 @@ function Chat() {
         case "initiate":
           setProgress(e.data as ProgressStatusInfo);
           setOpenProgress(true);
-
-          setReady(false);
-          setProgressItems((prev) => [...prev, e.data]);
           break;
 
         case "progress":
           setOpenProgress(true);
-
           setProgress(e.data as ProgressStatusInfo);
-
-          setProgressItems((prev) =>
-            prev.map((item) => {
-              if (item.file === e.data.file) {
-                return { ...item, progress: e.data.progress };
-              }
-              return item;
-            })
-          );
           break;
 
         case "done":
           setOpenProgress(true);
-
           setProgress(e.data as ProgressStatusInfo);
-
-          setProgressItems((prev) =>
-            prev.filter((item) => item.file !== e.data.file)
-          );
           break;
 
         case "ready":
           setOpenProgress(true);
-
           setProgress(e.data as ProgressStatusInfo);
-
-          setReady(true);
           break;
 
         case "update":
           setOpenProgress(false);
-
           setOutput((prev) => prev + e.data.output);
           setStreaming(true);
           break;
 
         case "complete":
           setOpenProgress(false);
-
           setMessages(e.data.output.generated_text);
-          setDisabled(false);
           setStreaming(false);
           setOutput("");
           break;
       }
     };
 
-    // Attach the callback function as an event listener.
     worker.current.addEventListener("message", onMessageReceived);
 
-    // Define a cleanup function for when the component is unmounted.
     return () => {
       if (worker.current)
         worker.current.removeEventListener("message", onMessageReceived);
@@ -213,9 +180,7 @@ function Chat() {
               output={output}
               streaming={streaming}
             />
-            {JSON.stringify(progressItems)}
-            {JSON.stringify(ready)}
-            {JSON.stringify(disabled)}
+
             <ModelLoading
               progress={progress}
               open={openProgress}
@@ -275,41 +240,51 @@ function UserChat(props: {
 }) {
   return (
     <div className="flex-1 overflow-y-auto mb-4 h-fit pr-2">
-      {props.messages?.map((msg, index) => (
-        <div
-          key={index}
-          className={`${
-            msg.role === "user" ? "flex-row-reverse" : ""
-          } flex justify-startgap-2 mb-2 items-center`}
-        >
-          <div>
-            <b>{msg.role === "user" ? "You" : "AI"}</b>
-          </div>
-          <div
-            key={index}
-            className={` ${
-              msg.role === "user" ? "shadow " : "bg-muted"
-            } p-4 rounded-lg mb-2 max-w-lg ${
-              msg.role === "user" ? "ml-auto" : ""
-            }`}
-          >
-            <div className="chat-message-content">
-              <Markdown>{msg.content}</Markdown>
-            </div>
-          </div>
+      {props.messages === undefined || props.messages.length === 0 ? (
+        <div className="flex flex-col justify-center items-center h-full">
+          <p className="text-muted-foreground">
+            Welcome to the chat Playground – start by typing a message!
+          </p>
         </div>
-      ))}
-      {props.streaming && (
-        <div className="flex justify-start gap-2 mb-2 items-center">
-          <div>
-            <b>AI</b>
-          </div>
-          <div className="bg-muted p-4 rounded-lg mb-2 max-w-lg">
-            <div className="chat-message-content">
-              <Markdown>{props.output}</Markdown>
+      ) : (
+        <>
+          {props.messages?.map((msg, index) => (
+            <div
+              key={index}
+              className={`${
+                msg.role === "user" ? "flex-row-reverse" : ""
+              } flex justify-startgap-2 mb-2 items-center`}
+            >
+              <div>
+                <b>{msg.role === "user" ? "You" : "AI"}</b>
+              </div>
+              <div
+                key={index}
+                className={` ${
+                  msg.role === "user" ? "shadow " : "bg-muted"
+                } p-4 rounded-lg mb-2 max-w-lg ${
+                  msg.role === "user" ? "ml-auto" : ""
+                }`}
+              >
+                <div className="chat-message-content">
+                  <Markdown>{msg.content}</Markdown>
+                </div>
+              </div>
             </div>
-          </div>
-        </div>
+          ))}
+          {props.streaming && (
+            <div className="flex justify-start gap-2 mb-2 items-center">
+              <div>
+                <b>AI</b>
+              </div>
+              <div className="bg-muted p-4 rounded-lg mb-2 max-w-lg">
+                <div className="chat-message-content">
+                  <Markdown>{props.output}</Markdown>
+                </div>
+              </div>
+            </div>
+          )}
+        </>
       )}
     </div>
   );
