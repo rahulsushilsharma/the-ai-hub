@@ -35,6 +35,7 @@ function Chat() {
         type: "chat:switchModel",
         model: model.value,
       });
+      console.log("update model");
     }
   }, [appState.settingsOpen, model.value]);
 
@@ -66,7 +67,8 @@ function Chat() {
           break;
 
         case "ready":
-          setOpenProgress(true);
+          console.log("redy recived");
+          setOpenProgress(false);
           setProgress(e.data as ProgressStatusInfo);
           break;
 
@@ -193,7 +195,10 @@ function Chat() {
               onOpenChange={setOpenProgress}
             />
             <ModelChatSettings />
-            <UserInput onSend={handleSend} />
+            <div>
+              <p className="text-muted-foreground text-sm">{model.label}</p>
+              <UserInput onSend={handleSend} />
+            </div>
           </div>
         </SidebarProvider>
       </div>
