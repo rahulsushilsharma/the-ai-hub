@@ -4,7 +4,7 @@ import ModelLoading from "@/components/ModelLoading";
 import { Button } from "@/components/ui/button";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { Textarea } from "@/components/ui/textarea";
-import { useAppStore } from "@/services/uiStore";
+import { useAppStore, useChatSettings } from "@/services/uiStore";
 import type { Message } from "@/types/types";
 import { Send } from "lucide-react";
 import type { ProgressStatusInfo } from "node_modules/@huggingface/transformers/types/utils/core";
@@ -26,6 +26,18 @@ function Chat() {
   const setCurrentSession = useAppStore((state) => state.setCurrentSession);
   const messages = useAppStore((state) => state.messages);
   const setMessages = useAppStore((state) => state.setMessages);
+  const model = useChatSettings((state) => state.model);
+  const appState = useAppStore((state) => state.appState);
+
+  useEffect(() => {
+    if (worker.current && !appState.settingsOpen) {
+      worker.current.postMessage({
+        type: "chat:switchModel",
+        model: model.value,
+      });
+      console.log("update model");
+    }
+  }, [appState.settingsOpen, model.value]);
 
   useEffect(() => {
     if (!worker.current) {
@@ -55,7 +67,8 @@ function Chat() {
           break;
 
         case "ready":
-          setOpenProgress(true);
+          console.log("redy recived");
+          setOpenProgress(false);
           setProgress(e.data as ProgressStatusInfo);
           break;
 
@@ -182,7 +195,10 @@ function Chat() {
               onOpenChange={setOpenProgress}
             />
             <ModelChatSettings />
-            <UserInput onSend={handleSend} />
+            <div>
+              <p className="text-muted-foreground text-sm">{model.label}</p>
+              <UserInput onSend={handleSend} />
+            </div>
           </div>
         </SidebarProvider>
       </div>
