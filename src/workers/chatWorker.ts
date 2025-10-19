@@ -2,39 +2,46 @@ import {
   pipeline,
   TextGenerationPipeline,
   TextStreamer,
+  type PipelineType,
+  type ProgressCallback,
 } from "@huggingface/transformers";
 
-let llmPipeline: TextGenerationPipeline | null = null;
-self.addEventListener("message", async (event) => {
-  const { type, params, messages } = event.data;
+class LLMCompletionPipeline {
+  static task: PipelineType = "text-generation";
+  static model = "onnx-community/SmolLM2-135M-Instruct-ONNX-GQA";
+  static instance: unknown;
 
-  if (type === "init") {
-    // Avoid creating an overly complex union type from pipeline(...) by narrowing via unknown
-    const raw = (await pipeline("text-generation", params.value, {
-      device: params.device,
-      progress_callback: (x) => {
-        console.log("llm ", x);
-        self.postMessage(x);
-      },
-    })) as unknown;
-    llmPipeline = raw as TextGenerationPipeline;
+  static async getInstance(progress_callback: ProgressCallback) {
+    if (!this.instance) {
+      this.instance = pipeline(this.task, this.model, {
+        progress_callback,
+        device: "webgpu",
+      });
+    }
+
+    return this.instance as TextGenerationPipeline;
   }
+}
+self.addEventListener("message", async (event) => {
+  const llm = await LLMCompletionPipeline.getInstance((x) => {
+    self.postMessage(x);
+  });
 
-  if (llmPipeline === null) {
+  if (llm === undefined) {
     self.postMessage({ status: "complete", output: "LLM not loaded" });
     return;
   }
 
   switch (event.data.type) {
     case "chat:message": {
-      const output1 = await llmPipeline(messages, {
-        max_new_tokens: params.max_new_tokens,
+      const output1 = await llm(event.data.messages, {
+        max_new_tokens: 512,
         do_sample: false,
-        streamer: new TextStreamer(llmPipeline.tokenizer, {
+        streamer: new TextStreamer(llm.tokenizer, {
           skip_prompt: true,
           skip_special_tokens: true,
           callback_function: (text) => {
-            self.postMessage({ status: "stream", output: text });
+            self.postMessage({ status: "update", output: text });
           },
         }),
       });
