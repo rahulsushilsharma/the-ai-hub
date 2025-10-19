@@ -1,35 +1,81 @@
+import { CHAT_MODELS } from "@/consts/consts";
+import type { Model } from "@/types/types";
 import {
   pipeline,
   TextGenerationPipeline,
   TextStreamer,
-  type PipelineType,
   type ProgressCallback,
 } from "@huggingface/transformers";
 
 class LLMCompletionPipeline {
-  static task: PipelineType = "text-generation";
-  static model = "onnx-community/SmolLM2-135M-Instruct-ONNX-GQA";
-  static instance: unknown;
+  static task: "text-generation";
+  static models: Record<string, Model> = Object.fromEntries(
+    CHAT_MODELS.map((m) => [m.value, m])
+  );
+  static instances: Record<string, TextGenerationPipeline> = {};
+  static currentModel = CHAT_MODELS[0].value; // Default: SmolLM2
 
-  static async getInstance(progress_callback: ProgressCallback) {
-    if (!this.instance) {
-      this.instance = pipeline(this.task, this.model, {
-        progress_callback,
-        device: "webgpu",
-      });
+  static async getInstance(progress_callback?: ProgressCallback) {
+    const modelConfig = this.models[this.currentModel];
+
+    if (!modelConfig) {
+      throw new Error(`Model config not found for ${this.currentModel}`);
     }
 
-    return this.instance as TextGenerationPipeline;
+    if (!this.instances[this.currentModel]) {
+      console.log(`Loading model: ${modelConfig.label}`);
+      this.task = "text-generation";
+      this.instances[this.currentModel] = (await pipeline(
+        this.task,
+        modelConfig.value,
+        {
+          progress_callback,
+          device: modelConfig.device,
+          dtype: modelConfig.dtype,
+        }
+      )) as unknown as TextGenerationPipeline;
+    }
+
+    return this.instances[this.currentModel];
+  }
+
+  static async switchModel(
+    modelValue: string,
+    progress_callback?: ProgressCallback
+  ) {
+    if (this.currentModel === modelValue) return this.instances[modelValue];
+
+    if (!this.models[modelValue]) {
+      throw new Error(`Unknown model: ${modelValue}`);
+    }
+
+    this.currentModel = modelValue;
+    return this.getInstance(progress_callback);
+  }
+
+  static getCurrentModel() {
+    return this.models[this.currentModel];
+  }
+
+  static getAvailableModels(): Model[] {
+    return Object.values(this.models);
   }
 }
 self.addEventListener("message", async (event) => {
-  const llm = await LLMCompletionPipeline.getInstance((x) => {
+  let llm = await LLMCompletionPipeline.getInstance((x) => {
     self.postMessage(x);
   });
 
   if (llm === undefined) {
     self.postMessage({ status: "complete", output: "LLM not loaded" });
     return;
+  }
+
+  if (event.data.type === "chat:switchModel") {
+    const model = event.data.model;
+    llm = await LLMCompletionPipeline.switchModel(model, (x) => {
+      self.postMessage(x);
+    });
   }
 
   switch (event.data.type) {

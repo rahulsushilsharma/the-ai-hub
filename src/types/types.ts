@@ -1,3 +1,5 @@
+import type { DeviceType } from "@huggingface/transformers";
+
 interface Session {
   id: string;
   name: string;
@@ -15,7 +17,7 @@ interface Model {
   label: string;
   value: string;
   type: "local" | "api";
-  device?: "cpu" | "webgl" | "webgpu";
+  device?: DeviceType;
   dtype?: "fp16" | "fp32" | "q4f16";
   loaded?: boolean;
 }

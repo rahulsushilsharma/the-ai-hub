@@ -4,7 +4,7 @@ import ModelLoading from "@/components/ModelLoading";
 import { Button } from "@/components/ui/button";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { Textarea } from "@/components/ui/textarea";
-import { useAppStore } from "@/services/uiStore";
+import { useAppStore, useChatSettings } from "@/services/uiStore";
 import type { Message } from "@/types/types";
 import { Send } from "lucide-react";
 import type { ProgressStatusInfo } from "node_modules/@huggingface/transformers/types/utils/core";
@@ -26,6 +26,17 @@ function Chat() {
   const setCurrentSession = useAppStore((state) => state.setCurrentSession);
   const messages = useAppStore((state) => state.messages);
   const setMessages = useAppStore((state) => state.setMessages);
+  const model = useChatSettings((state) => state.model);
+  const appState = useAppStore((state) => state.appState);
+
+  useEffect(() => {
+    if (worker.current && !appState.settingsOpen) {
+      worker.current.postMessage({
+        type: "chat:switchModel",
+        model: model.value,
+      });
+    }
+  }, [appState.settingsOpen, model.value]);
 
   useEffect(() => {
     if (!worker.current) {
