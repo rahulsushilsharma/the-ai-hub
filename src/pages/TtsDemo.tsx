@@ -11,7 +11,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { CheckCircle, Loader2, Rocket, Volume2 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
-
+import TtsWorker from "../workers/tts.ts?worker";
 export default function TtsDemo() {
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState<
@@ -22,12 +22,7 @@ export default function TtsDemo() {
 
   useEffect(() => {
     if (!worker.current) {
-      worker.current = new Worker(
-        new URL("../workers/tts.ts", import.meta.url),
-        {
-          type: "module",
-        }
-      );
+      worker.current = new TtsWorker();
     }
 
     const onMessageReceived = (e: MessageEvent) => {

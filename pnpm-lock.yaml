@@ -75,8 +75,8 @@ importers:
         specifier: ^4.1.13
         version: 4.1.13
       tts-pipelines:
-        specifier: ^0.2.4
-        version: 0.2.4(onnxruntime-web@1.23.0)
+        specifier: ^0.2.7
+        version: 0.2.7(onnxruntime-web@1.23.0)
       zustand:
         specifier: ^5.0.8
         version: 5.0.8(@types/react@19.1.15)(react@19.1.1)
@@ -2289,8 +2289,8 @@ packages:
   tslib@2.8.1:
     resolution: {integrity: sha512-oJFu94HQb+KVduSUQL7wnpmqnfmLsOA/nAh6b6EH0wCEoK0/mPeXU6c3wKDV83MkOuHPRHtSXKKU99IBazS/2w==}
 
-  tts-pipelines@0.2.4:
-    resolution: {integrity: sha512-teIqyCUHY5/VnUTcfa0osYzB1CQOBvsKIaUoEOOegHd/MgSoLP6oashR6iS4ItFSIhOF+vV6lLyd8Kfp4yIAAw==}
+  tts-pipelines@0.2.7:
+    resolution: {integrity: sha512-ptsy9e53Ly4djRb8Ms9q8WqRefPcbNkY768ZdjWVCc/qKCQ6Rgt4g4J8TcpX7x8NOAOTlDSfA2NhTmN+FzI7bA==}
     peerDependencies:
       onnxruntime-node: ^1.23.0
       onnxruntime-web: ^1.23.0
@@ -4687,7 +4687,7 @@ snapshots:
 
   tslib@2.8.1: {}
 
-  tts-pipelines@0.2.4(onnxruntime-web@1.23.0):
+  tts-pipelines@0.2.7(onnxruntime-web@1.23.0):
     dependencies:
       phonemizer: 1.2.1
     optionalDependencies:

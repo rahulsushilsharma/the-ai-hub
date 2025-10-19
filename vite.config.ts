@@ -18,4 +18,12 @@ export default defineConfig({
       "@": path.resolve(__dirname, "./src"),
     },
   },
+  worker: {
+    format: "es", // ✅ modern module format (required)
+    rollupOptions: {
+      output: {
+        manualChunks: undefined, // prevents code-splitting inside worker
+      },
+    },
+  },
 });
