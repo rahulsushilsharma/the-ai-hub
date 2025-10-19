@@ -1,9 +1,10 @@
 import { AppSidebar } from "@/components/app-sidebar";
+import ModelChatSettings from "@/components/ModelChatSettings";
 import ModelLoading from "@/components/ModelLoading";
 import { Button } from "@/components/ui/button";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { Textarea } from "@/components/ui/textarea";
-import { useAppStore } from "@/services/uiStore";
+import { useAppStore, useChatSettings } from "@/services/uiStore";
 import type { Message } from "@/types/types";
 import { Send } from "lucide-react";
 import type { ProgressStatusInfo } from "node_modules/@huggingface/transformers/types/utils/core";
@@ -25,6 +26,8 @@ function Chat() {
   const setCurrentSession = useAppStore((state) => state.setCurrentSession);
   const messages = useAppStore((state) => state.messages);
   const setMessages = useAppStore((state) => state.setMessages);
+  const settings = useChatSettings((state) => state.settings);
+  const model = useChatSettings((state) => state.model);
 
   useEffect(() => {
     if (!worker.current) {
@@ -58,7 +61,7 @@ function Chat() {
           setProgress(e.data as ProgressStatusInfo);
           break;
 
-        case "update":
+        case "stream":
           setOpenProgress(false);
           setOutput((prev) => prev + e.data.output);
           setStreaming(true);
@@ -91,6 +94,12 @@ function Chat() {
 
   function handleSend(message: string) {
     if (currentSession === null) {
+      if (model.loaded === false) {
+        worker.current?.postMessage({
+          type: "init",
+          params: model,
+        });
+      }
       const newSession = {
         id: Date.now().toString(),
         name: message.slice(0, 20),
@@ -107,10 +116,11 @@ function Chat() {
       timestamp: Date.now(),
     };
     updateMessages(newMessage);
-
+    console.log("Sending message to worker:", [...messages, newMessage]);
     worker.current?.postMessage({
       type: "chat:message",
       messages: [...messages, newMessage],
+      params: settings,
     });
   }
 
@@ -169,17 +179,14 @@ function Chat() {
           <AppSidebar />
           <SidebarTrigger />
           <div className="p-4 w-full h-screen flex flex-col gap-4 justify-between">
-            <UserChat
-              messages={messages}
-              output={output}
-              streaming={streaming}
-            />
+            <UserChat output={output} streaming={streaming} />
 
             <ModelLoading
               progress={progress}
               open={openProgress}
               onOpenChange={setOpenProgress}
             />
+            <ModelChatSettings />
             <UserInput onSend={handleSend} />
           </div>
         </SidebarProvider>
@@ -225,14 +232,13 @@ function UserInput(props: UserInputProps) {
   );
 }
 
-function UserChat(props: {
-  messages?: Message[];
-  output: string;
-  streaming?: boolean;
-}) {
+function UserChat(props: { output: string; streaming?: boolean }) {
+  const messages = useAppStore((state) => state.messages);
+
+  console.log("Rendering UserChat with messages:", messages);
   return (
     <div className="flex-1 overflow-y-auto mb-4 h-fit pr-2">
-      {props.messages === undefined || props.messages.length === 0 ? (
+      {messages === undefined || messages.length === 0 ? (
         <div className="flex flex-col justify-center items-center h-full">
           <p className="text-muted-foreground">
             Welcome to the chat Playground – start by typing a message!
@@ -240,7 +246,7 @@ function UserChat(props: {
         </div>
       ) : (
         <>
-          {props.messages?.map((msg, index) => (
+          {messages?.map((msg, index) => (
             <div
               key={index}
               className={`${

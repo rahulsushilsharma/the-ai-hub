@@ -31,11 +31,16 @@ function ModelLoading(props: ModelLoadingProps) {
             <h3 className="text-lg font-medium">{progress?.name}</h3>
           </div>
           <div className="grid gap-4 py-4">
+            <div className="text-sm text-muted-foreground">
+              Loading File: {progress?.file}
+            </div>
+          </div>
+          <div className="grid gap-4 py-4">
             <Progress value={progress?.progress} />
             <div className="text-sm text-muted-foreground">
               {progress?.progress
                 ? `${progress?.progress.toFixed(2)}%`
-                : "Loading..."}{" "}
+                : "Loading..."}
             </div>
           </div>
         </DialogContent>

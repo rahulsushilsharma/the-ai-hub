@@ -1,7 +1,8 @@
-import type { Message, Session } from "@/types/types";
+import { CHAT_MODELS } from "@/consts/consts";
+import type { ChatSettings, Message, Model, Session } from "@/types/types";
 import { create } from "zustand";
 
-type Store = {
+type StoreState = {
   currentSession: Session | null;
   setCurrentSession: (session: Session | null) => void;
   sessions: Session[];
@@ -11,9 +12,20 @@ type Store = {
   renameSession: (sessionId: string, newName: string) => void;
   messages: Message[];
   setMessages: (messages: Message[]) => void;
+  appState: {
+    settingsOpen: boolean;
+  };
+  setAppState: (appState: StoreState["appState"]) => void;
 };
 
-const useAppStore = create<Store>()((set) => ({
+type ChatSettingsState = {
+  settings: ChatSettings;
+  model: Model;
+  setChatSettings: (settings: ChatSettings) => void;
+  setModel: (model: Model) => void;
+};
+
+const useAppStore = create<StoreState>()((set) => ({
   currentSession: null,
   setCurrentSession: (session) => set({ currentSession: session }),
   sessions: [],
@@ -35,6 +47,29 @@ const useAppStore = create<Store>()((set) => ({
   },
   messages: [],
   setMessages: (messages) => set({ messages }),
+  appState: { settingsOpen: false },
+  setAppState: (appState) =>
+    set((state) => {
+      return { appState: { ...state.appState, ...appState } };
+    }),
 }));
 
-export { useAppStore };
+const useChatSettings = create<ChatSettingsState>()((set) => ({
+  settings: {
+    temperature: 0.7,
+    top_p: 1,
+    presence_penalty: 0,
+    frequency_penalty: 0,
+    max_new_tokens: 512,
+    stream: true,
+    model: "",
+    modelType: "api",
+  },
+  setChatSettings: (settings) => set({ settings }),
+  model: {
+    ...CHAT_MODELS[0],
+    loaded: false,
+  },
+  setModel: (model) => set({ model }),
+}));
+export { useAppStore, useChatSettings };
