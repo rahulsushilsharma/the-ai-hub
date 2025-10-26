@@ -99,10 +99,6 @@ function Chat() {
     setSessions([...sessions, newSession]);
   }
 
-  function updateMessages(newMessage: Message) {
-    setMessages([...messages, newMessage]);
-  }
-
   function handleSend(message: string) {
     if (currentSession === null) {
       const newSession = {
@@ -120,7 +116,7 @@ function Chat() {
       sessionId: currentSession ? currentSession.id : "unknown",
       timestamp: Date.now(),
     };
-    updateMessages(newMessage);
+    setMessages([...messages, newMessage]);
 
     worker.current?.postMessage({
       type: "chat:message",
@@ -160,7 +156,9 @@ function Chat() {
     if (currentSession) {
       const savedMessages = localMessages(currentSession);
 
-      setMessages(savedMessages);
+      if (savedMessages) {
+        setMessages(savedMessages);
+      }
     } else {
       setMessages([]);
     }
@@ -180,7 +178,7 @@ function Chat() {
       {" "}
       <div>
         <SidebarProvider>
-          <AppSidebar />
+          <AppSidebar className="h-[100dvh-h-12]" />
           <SidebarTrigger />
           <div className="p-4 w-full h-screen flex flex-col gap-4 justify-between">
             <UserChat
@@ -248,6 +246,7 @@ function UserChat(props: {
   output: string;
   streaming?: boolean;
 }) {
+  console.log(props);
   return (
     <div className="flex-1 overflow-y-auto mb-4 h-fit pr-2">
       {props.messages === undefined || props.messages.length === 0 ? (

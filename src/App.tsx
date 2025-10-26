@@ -1,10 +1,37 @@
 import { Outlet } from "react-router";
 import "./App.css";
+// Import the functions you need from the SDKs you need
+import { getAnalytics } from "firebase/analytics";
+import { initializeApp } from "firebase/app";
+import Navbar from "./components/Navbaar";
+import { ThemeProvider } from "./Theme";
+// TODO: Add SDKs for Firebase products that you want to use
+// https://firebase.google.com/docs/web/setup#available-libraries
+
+// Your web app's Firebase configuration
+// For Firebase JS SDK v7.20.0 and later, measurementId is optional
+const firebaseConfig = {
+  apiKey: "AIzaSyCiHfxW8UwhMxFOLXw8S_3UP7vps8fJg-0",
+  authDomain: "rahul-sushil-sharma.firebaseapp.com",
+  projectId: "rahul-sushil-sharma",
+  storageBucket: "rahul-sushil-sharma.firebasestorage.app",
+  messagingSenderId: "817826509214",
+  appId: "1:817826509214:web:caf4203b380d2b39c4a68f",
+  measurementId: "G-MLR789TV0J",
+};
+
+// Initialize Firebase
+const app = initializeApp(firebaseConfig);
+const analytics = getAnalytics(app);
 
 function App() {
+  console.log(analytics);
   return (
     <>
-      <Outlet />
+      <ThemeProvider defaultTheme="dark" storageKey="vite-ui-theme">
+        <Navbar />
+        <Outlet />
+      </ThemeProvider>
     </>
   );
 }
