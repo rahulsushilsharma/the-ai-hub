@@ -138,7 +138,7 @@ export default function Navbar() {
       >
         <Menu />
       </Button>
-      <nav className="flex gap-4 h-12 items-center px-4 shadow-md fixed top-3 left-0 right-0 z-99 navbar w-[70dvw] rounded-md bg-background/80 ">
+      <nav className="flex gap-1 h-12 items-center px-4 shadow-md fixed top-3 left-0 right-0 z-99 navbar w-[70vw] rounded-md bg-background/80 ">
         <Button onClick={() => navigate("/")} variant="link">
           Home
         </Button>

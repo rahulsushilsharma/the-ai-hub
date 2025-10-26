@@ -91,10 +91,13 @@ function Home() {
           ".circle-7",
           {
             scale: [
-              { to: 2, ease: "inOut(3)" },
+              { to: 5, ease: "inOut(3)" },
               { to: 1, ease: spring({ bounce: 0.5 }) },
             ],
-            color: { to: "#f00", ease: "inOut(3)" },
+            opacity: [
+              { to: 1, ease: "inOut(3)" },
+              { to: 0.7, ease: spring({ bounce: 0.5 }) },
+            ],
             rotate: { to: 360, ease: "inOut(3)" },
           },
           0
@@ -106,8 +109,10 @@ function Home() {
               { to: 3, ease: "inOut(3)" },
               { to: 1, ease: spring({ bounce: 0.5 }) },
             ],
-            color: { to: "#f00", ease: "inOut(3)" },
-
+            opacity: [
+              { to: 1, ease: "inOut(3)" },
+              { to: 0.1, ease: spring({ bounce: 0.5 }) },
+            ],
             rotate: { to: 360, ease: "inOut(3)" },
           },
           100
@@ -119,8 +124,10 @@ function Home() {
               { to: 4, ease: "inOut(3)" },
               { to: 1, ease: spring({ bounce: 0.5 }) },
             ],
-            color: { to: "#f00", ease: "inOut(3)" },
-
+            opacity: [
+              { to: 1, ease: "inOut(3)" },
+              { to: 0.1, ease: spring({ bounce: 0.5 }) },
+            ],
             rotate: { to: 360, ease: "inOut(3)" },
           },
           200
@@ -132,8 +139,10 @@ function Home() {
               { to: 5, ease: "inOut(3)" },
               { to: 1, ease: spring({ bounce: 0.5 }) },
             ],
-            color: { to: "#f00", ease: "inOut(3)" },
-
+            opacity: [
+              { to: 1, ease: "inOut(3)" },
+              { to: 0.1, ease: spring({ bounce: 0.5 }) },
+            ],
             rotate: { to: 360, ease: "inOut(3)" },
           },
           300
@@ -145,8 +154,10 @@ function Home() {
               { to: 6, ease: "inOut(3)" },
               { to: 1, ease: spring({ bounce: 0.5 }) },
             ],
-            color: { to: "#f00", ease: "inOut(3)" },
-
+            opacity: [
+              { to: 1, ease: "inOut(3)" },
+              { to: 0.1, ease: spring({ bounce: 0.5 }) },
+            ],
             rotate: { to: 360, ease: "inOut(3)" },
           },
           400
@@ -158,8 +169,10 @@ function Home() {
               { to: 7, ease: "inOut(3)" },
               { to: 1, ease: spring({ bounce: 0.5 }) },
             ],
-            color: { to: "#f00", ease: "inOut(3)" },
-
+            opacity: [
+              { to: 1, ease: "inOut(3)" },
+              { to: 0.1, ease: spring({ bounce: 0.5 }) },
+            ],
             rotate: { to: 360, ease: "inOut(3)" },
           },
           500
@@ -171,8 +184,10 @@ function Home() {
               { to: 8, ease: "inOut(3)" },
               { to: 1, ease: spring({ bounce: 0.5 }) },
             ],
-            color: { to: "#f00", ease: "inOut(3)" },
-
+            opacity: [
+              { to: 1, ease: "inOut(3)" },
+              { to: 0.1, ease: spring({ bounce: 0.5 }) },
+            ],
             rotate: { to: 360, ease: "inOut(3)" },
           },
           600
@@ -202,7 +217,7 @@ function Home() {
                 cell.heart === 1 ? (
                   <div key={cellIndex} className={`w-8 h-8 `}>
                     <div
-                      className={`w-3 h-3 rounded-2xl m-auto mt-2 heart circle-${cell.circle}`}
+                      className={`w-3 h-3 rounded-2xl m-auto mt-2 heart circle-${cell.circle}  opacity-[0.1]`}
                     >
                       <Settings className="w-3 h-3 gear stroke-red-500 mix-blend-plus-darker" />
                     </div>
