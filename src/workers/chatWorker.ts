@@ -81,7 +81,7 @@ self.addEventListener("message", async (event) => {
   switch (event.data.type) {
     case "chat:message": {
       const output1 = await llm(event.data.messages, {
-        max_new_tokens: 512,
+        max_new_tokens: 1024,
         do_sample: false,
         streamer: new TextStreamer(llm.tokenizer, {
           skip_prompt: true,

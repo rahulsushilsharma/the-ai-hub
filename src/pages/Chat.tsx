@@ -178,7 +178,7 @@ function Chat() {
       {" "}
       <div>
         <SidebarProvider>
-          <AppSidebar />
+          <AppSidebar className="h-[100dvh-h-12]" />
           <SidebarTrigger />
           <div className="p-4 w-full h-screen flex flex-col gap-4 justify-between">
             <UserChat
