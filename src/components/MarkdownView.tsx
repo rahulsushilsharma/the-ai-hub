@@ -25,18 +25,7 @@ export function MarkdownView({ docs }: MarkdownViewProps) {
       />
     ),
 
-    code({ inline, className, children, ...rest }) {
-      if (inline) {
-        return (
-          <code
-            {...rest}
-            className="bg-gray-100 dark:bg-gray-800 px-1.5 py-0.5 rounded text-[0.9em] font-mono break-words"
-          >
-            {children}
-          </code>
-        );
-      }
-
+    code({ className, children, ...rest }) {
       return (
         <pre className="my-4 overflow-x-auto rounded-lg bg-gray-100 dark:bg-gray-900 p-4 break-words">
           <code
