@@ -86,19 +86,24 @@ function Home() {
         loop: true,
       });
 
+      animate(".circle-7", {
+        rotate: { to: 360, ease: "linear" },
+        loop: true,
+        duration: 1000,
+      });
+
       tl.label("heartBeat")
         .add(
           ".circle-7",
           {
             scale: [
-              { to: 5, ease: "inOut(3)" },
-              { to: 1, ease: spring({ bounce: 0.5 }) },
+              { to: 7, ease: "inOut(3)" },
+              { to: 3, ease: spring({ bounce: 0.5 }) },
             ],
             opacity: [
               { to: 1, ease: "inOut(3)" },
               { to: 0.7, ease: spring({ bounce: 0.5 }) },
             ],
-            rotate: { to: 360, ease: "inOut(3)" },
           },
           0
         )
@@ -111,7 +116,7 @@ function Home() {
             ],
             opacity: [
               { to: 1, ease: "inOut(3)" },
-              { to: 0.1, ease: spring({ bounce: 0.5 }) },
+              { to: 0, ease: spring({ bounce: 0.5 }) },
             ],
             rotate: { to: 360, ease: "inOut(3)" },
           },
@@ -126,7 +131,7 @@ function Home() {
             ],
             opacity: [
               { to: 1, ease: "inOut(3)" },
-              { to: 0.1, ease: spring({ bounce: 0.5 }) },
+              { to: 0, ease: spring({ bounce: 0.5 }) },
             ],
             rotate: { to: 360, ease: "inOut(3)" },
           },
@@ -141,7 +146,7 @@ function Home() {
             ],
             opacity: [
               { to: 1, ease: "inOut(3)" },
-              { to: 0.1, ease: spring({ bounce: 0.5 }) },
+              { to: 0, ease: spring({ bounce: 0.5 }) },
             ],
             rotate: { to: 360, ease: "inOut(3)" },
           },
@@ -156,7 +161,7 @@ function Home() {
             ],
             opacity: [
               { to: 1, ease: "inOut(3)" },
-              { to: 0.1, ease: spring({ bounce: 0.5 }) },
+              { to: 0, ease: spring({ bounce: 0.5 }) },
             ],
             rotate: { to: 360, ease: "inOut(3)" },
           },
@@ -171,7 +176,7 @@ function Home() {
             ],
             opacity: [
               { to: 1, ease: "inOut(3)" },
-              { to: 0.1, ease: spring({ bounce: 0.5 }) },
+              { to: 0, ease: spring({ bounce: 0.5 }) },
             ],
             rotate: { to: 360, ease: "inOut(3)" },
           },
@@ -186,7 +191,7 @@ function Home() {
             ],
             opacity: [
               { to: 1, ease: "inOut(3)" },
-              { to: 0.1, ease: spring({ bounce: 0.5 }) },
+              { to: 0, ease: spring({ bounce: 0.5 }) },
             ],
             rotate: { to: 360, ease: "inOut(3)" },
           },
@@ -217,7 +222,7 @@ function Home() {
                 cell.heart === 1 ? (
                   <div key={cellIndex} className={`w-8 h-8 `}>
                     <div
-                      className={`w-3 h-3 rounded-2xl m-auto mt-2 heart circle-${cell.circle}  opacity-[0.1]`}
+                      className={`w-3 h-3 rounded-2xl m-auto mt-2 heart circle-${cell.circle}  opacity-[0.01]`}
                     >
                       <Settings className="w-3 h-3 gear stroke-red-500 mix-blend-plus-darker" />
                     </div>
@@ -230,7 +235,8 @@ function Home() {
           ))}
         </div>
         <div className="mt-10 text-center max-w-md text-container">
-          <p className="">Welcome to the Ai Hub, the heart of my ai projects</p>
+          <p className="">Welcome to the Ai Hub</p>
+          <p className="mt-4">The heart of my ai projects</p>
         </div>
       </div>
     </div>
