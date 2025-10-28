@@ -2,6 +2,7 @@ import { Suspense, lazy } from "react";
 import { Route, Routes } from "react-router";
 import App from "./App";
 import Home from "./pages/Home";
+import HuggingfaceChat from "./pages/HuggingfaceChat";
 
 const Chat = lazy(() => import("./pages/Chat"));
 const TtsDemo = lazy(() => import("./pages/TtsDemo"));
@@ -22,6 +23,10 @@ const routes = [
       {
         path: "/tts-demo",
         element: <TtsDemo />,
+      },
+      {
+        path: "huggingface-chat",
+        element: <HuggingfaceChat />,
       },
       {
         path: "*",

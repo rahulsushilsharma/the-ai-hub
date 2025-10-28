@@ -159,10 +159,10 @@ export default function Navbar() {
 
         <Button
           className="p-0.5"
-          onClick={() => navigate("/about")}
+          onClick={() => navigate("/huggingface-chat")}
           variant="link"
         >
-          About
+          huggingface chat
         </Button>
         <Button
           className="ml-auto "
