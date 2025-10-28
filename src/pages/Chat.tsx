@@ -1,4 +1,5 @@
 import { AppSidebar } from "@/components/app-sidebar";
+import { MarkdownView } from "@/components/MarkdownView";
 import ModelChatSettings from "@/components/ModelChatSettings";
 import ModelLoading from "@/components/ModelLoading";
 import { Button } from "@/components/ui/button";
@@ -246,7 +247,6 @@ function UserChat(props: {
   output: string;
   streaming?: boolean;
 }) {
-  console.log(props);
   return (
     <div className="flex-1 overflow-y-auto mb-4 h-fit pr-2">
       {props.messages === undefined || props.messages.length === 0 ? (
@@ -288,7 +288,7 @@ function UserChat(props: {
               </div>
               <div className="bg-muted p-4 rounded-lg mb-2 max-w-lg">
                 <div className="chat-message-content">
-                  <Markdown>{props.output}</Markdown>
+                  <MarkdownView docs={props.output} />
                 </div>
               </div>
             </div>

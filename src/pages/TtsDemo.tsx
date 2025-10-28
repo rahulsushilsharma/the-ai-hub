@@ -1,5 +1,7 @@
 "use client";
 
+import { MarkdownView } from "@/components/MarkdownView";
+import { GithubButton, NodeButton } from "@/components/RepoButtons";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -17,10 +19,19 @@ export default function TtsDemo() {
   const [loading, setLoading] = useState<
     "ready" | "loading" | "streaming" | "done"
   >("ready");
+  const [docs, setDocs] = useState<string>("");
   const worker = useRef<Worker | null>(null);
   const [audioUrl, setAudioUrl] = useState<string | undefined>();
 
   useEffect(() => {
+    const response = fetch(
+      "https://raw.githubusercontent.com/rahulsushilsharma/tts-pipelines/refs/heads/main/readme.md"
+    );
+    const text = response.then((res) => res.text());
+    text.then((data) => {
+      console.log("Fetched text:", data);
+      setDocs(data);
+    });
     if (!worker.current) {
       worker.current = new TtsWorker();
     }
@@ -104,7 +115,7 @@ export default function TtsDemo() {
   };
 
   return (
-    <main className="container max-w-2xl mx-auto py-10 px-4">
+    <main className="container max-w-2xl mx-auto py-10 px-4 pt-20">
       <div>
         <Card className="shadow-lg border border-gray-200/70 rounded-2xl">
           <CardHeader className="text-center">
@@ -194,6 +205,16 @@ export default function TtsDemo() {
             </a>
           </CardFooter>
         </Card>
+      </div>
+      <div className="mt-10 flex flex-col">
+        <h2 className="text-xl font-semibold mt-10 mb-4">Documentation</h2>
+        <div>
+          <GithubButton url="https://github.com/rahulsushilsharma/tts-pipelines" />
+        </div>
+        <div>
+          <NodeButton url="https://www.npmjs.com/package/tts-pipelines" />
+        </div>
+        <MarkdownView docs={docs} />
       </div>
     </main>
   );
