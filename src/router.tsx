@@ -1,6 +1,7 @@
 import { Suspense, lazy } from "react";
 import { Route, Routes } from "react-router";
 import App from "./App";
+import BgRemover from "./pages/BgRemover";
 import Home from "./pages/Home";
 import HuggingfaceChat from "./pages/HuggingfaceChat";
 
@@ -27,6 +28,10 @@ const routes = [
       {
         path: "huggingface-chat",
         element: <HuggingfaceChat />,
+      },
+      {
+        path: "bg-remover",
+        element: <BgRemover />,
       },
       {
         path: "*",
