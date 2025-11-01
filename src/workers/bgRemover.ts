@@ -17,6 +17,7 @@ class BgRemoverPipeline {
           "briaai/RMBG-1.4",
           {
             progress_callback,
+            dtype: "fp16",
           }
         )) as unknown as ImageSegmentationPipeline;
       } catch (error) {
