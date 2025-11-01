@@ -3,6 +3,8 @@ import react from "@vitejs/plugin-react";
 import path from "path";
 import { defineConfig } from "vite";
 
+import prerenderStaticPlugin from "./vite-plugin-prerender-static";
+
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [
@@ -12,6 +14,7 @@ export default defineConfig({
       },
     }),
     tailwindcss(),
+    prerenderStaticPlugin(),
   ],
   resolve: {
     alias: {
