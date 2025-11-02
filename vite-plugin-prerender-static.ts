@@ -18,12 +18,15 @@ export interface SEOTagOptions {
   url?: string;
   image?: string;
   keywords?: string;
+  canonical?: string;
+  robots?: string;
+  ampUrl?: string; // Optional AMP version
+  schema?: Record<string, unknown>; // Optional structured data (JSON-LD)
 }
 
 /**
- * Generate SEO meta tags as a string (for Node/SSR/SSG environments)
- * @param options SEO-related data like title, description, etc.
- * @returns HTML string containing all SEO-related meta/link tags.
+ * Generate SEO meta tags and optional structured data as a string.
+ * Works in Node.js, SSR, or prerender environments.
  */
 export function generateSEOTags({
   title,
@@ -32,33 +35,53 @@ export function generateSEOTags({
   url = "",
   image = "",
   keywords = "",
+  canonical,
+  robots = "index, follow",
+  ampUrl,
+  schema,
 }: SEOTagOptions): string {
-  return `
-<title>${escapeHtml(title)}</title>
-<meta name="description" content="${escapeHtml(description)}">
-<meta name="author" content="${escapeHtml(author)}">
+  const escapedTitle = escapeHtml(title);
+  const escapedDescription = escapeHtml(description);
+  const escapedAuthor = escapeHtml(author);
+
+  let tags = `
+<title>${escapedTitle}</title>
+<meta name="description" content="${escapedDescription}">
+<meta name="author" content="${escapedAuthor}">
 <meta name="keywords" content="${escapeHtml(keywords)}">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-${url ? `<link rel="canonical" href="${escapeHtml(url)}">` : ""}
-<meta name="robots" content="index, follow">
+<meta name="robots" content="${robots}">
+${canonical ? `<link rel="canonical" href="${escapeHtml(canonical)}">` : ""}
+${ampUrl ? `<link rel="amphtml" href="${escapeHtml(ampUrl)}">` : ""}
 
 <!-- Open Graph -->
-<meta property="og:title" content="${escapeHtml(title)}">
-<meta property="og:description" content="${escapeHtml(description)}">
+<meta property="og:title" content="${escapedTitle}">
+<meta property="og:description" content="${escapedDescription}">
 <meta property="og:type" content="website">
 ${url ? `<meta property="og:url" content="${escapeHtml(url)}">` : ""}
 ${image ? `<meta property="og:image" content="${escapeHtml(image)}">` : ""}
 
 <!-- Twitter Card -->
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="${escapeHtml(title)}">
-<meta name="twitter:description" content="${escapeHtml(description)}">
+<meta name="twitter:title" content="${escapedTitle}">
+<meta name="twitter:description" content="${escapedDescription}">
 ${image ? `<meta name="twitter:image" content="${escapeHtml(image)}">` : ""}
 `.trim();
+
+  if (schema) {
+    const schemaJson = JSON.stringify(schema, null, 2);
+    tags += `
+
+<!-- Structured Data -->
+<script type="application/ld+json">
+${schemaJson}
+</script>`;
+  }
+
+  return tags;
 }
-/**
- * Utility: Escape special HTML characters to prevent injection issues.
- */
+
+/** Escape special HTML characters to prevent injection */
 function escapeHtml(str: string): string {
   return str
     .replace(/&/g, "&amp;")
