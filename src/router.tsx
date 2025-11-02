@@ -1,11 +1,12 @@
-import { Suspense, lazy } from "react";
+import { lazy, Suspense } from "react";
 import { Route, Routes } from "react-router";
 import App from "./App";
-import Home from "./pages/Home";
-import HuggingfaceChat from "./pages/HuggingfaceChat";
 
+const Home = lazy(() => import("./pages/Home"));
 const Chat = lazy(() => import("./pages/Chat"));
 const TtsDemo = lazy(() => import("./pages/TtsDemo"));
+const HuggingfaceChat = lazy(() => import("./pages/HuggingfaceChat"));
+const BgRemover = lazy(() => import("./pages/BgRemover"));
 
 const routes = [
   {
@@ -27,6 +28,10 @@ const routes = [
       {
         path: "huggingface-chat",
         element: <HuggingfaceChat />,
+      },
+      {
+        path: "bg-remover",
+        element: <BgRemover />,
       },
       {
         path: "*",
@@ -53,11 +58,7 @@ function AppRouter() {
               element={<PageLoader>{element}</PageLoader>}
             >
               {children?.map((child, index) => (
-                <Route
-                  key={index}
-                  path={child.path}
-                  element={<PageLoader>{child.element}</PageLoader>}
-                />
+                <Route key={index} path={child.path} element={child.element} />
               ))}
             </Route>
           );

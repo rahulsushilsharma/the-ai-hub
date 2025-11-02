@@ -165,6 +165,13 @@ export default function Navbar() {
           huggingface chat
         </Button>
         <Button
+          className="p-0.5"
+          onClick={() => navigate("/bg-remover")}
+          variant="link"
+        >
+          Background Remover
+        </Button>
+        <Button
           className="ml-auto "
           onClick={() => setIsOpen((isOpen) => !isOpen)}
           variant="outline"
