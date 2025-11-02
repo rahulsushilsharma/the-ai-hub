@@ -1,14 +1,83 @@
+// vite-plugin-prerender-static.ts
 import fs from "fs";
 import path from "path";
 import type { Plugin } from "vite";
 
-export default function prerenderStaticPlugin(): Plugin {
-  const routes = [
-    { path: "/chat", title: "Chat" },
-    { path: "/tts-demo", title: "TTS Demo" },
-    { path: "/huggingface-chat", title: "Huggingface Chat" },
-    { path: "/bg-remover", title: "Background Remover" },
-  ];
+// 🧠 Define available options
+export interface PrerenderOptions {
+  routes: { path: string; tags: string | SEOTagOptions }[];
+  template?: string; // path to template.html (defaults to project root)
+  dist?: string; // path to dist directory (defaults to ./dist)
+  render?: (route: { path: string; tags: string | SEOTagOptions }) => string; // custom HTML renderer
+}
+
+export interface SEOTagOptions {
+  title: string;
+  description: string;
+  author?: string;
+  url?: string;
+  image?: string;
+  keywords?: string;
+}
+
+/**
+ * Generate SEO meta tags as a string (for Node/SSR/SSG environments)
+ * @param options SEO-related data like title, description, etc.
+ * @returns HTML string containing all SEO-related meta/link tags.
+ */
+export function generateSEOTags({
+  title,
+  description,
+  author = "Unknown",
+  url = "",
+  image = "",
+  keywords = "",
+}: SEOTagOptions): string {
+  return `
+<title>${escapeHtml(title)}</title>
+<meta name="description" content="${escapeHtml(description)}">
+<meta name="author" content="${escapeHtml(author)}">
+<meta name="keywords" content="${escapeHtml(keywords)}">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+${url ? `<link rel="canonical" href="${escapeHtml(url)}">` : ""}
+<meta name="robots" content="index, follow">
+
+<!-- Open Graph -->
+<meta property="og:title" content="${escapeHtml(title)}">
+<meta property="og:description" content="${escapeHtml(description)}">
+<meta property="og:type" content="website">
+${url ? `<meta property="og:url" content="${escapeHtml(url)}">` : ""}
+${image ? `<meta property="og:image" content="${escapeHtml(image)}">` : ""}
+
+<!-- Twitter Card -->
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="${escapeHtml(title)}">
+<meta name="twitter:description" content="${escapeHtml(description)}">
+${image ? `<meta name="twitter:image" content="${escapeHtml(image)}">` : ""}
+`.trim();
+}
+/**
+ * Utility: Escape special HTML characters to prevent injection issues.
+ */
+function escapeHtml(str: string): string {
+  return str
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+
+export default function prerenderStaticPlugin(
+  options: PrerenderOptions
+): Plugin {
+  const {
+    routes,
+    template = path.resolve(process.cwd(), "template.html"),
+    dist = path.resolve(process.cwd(), "dist"),
+    render = () =>
+      "<p style='height: 100vh ; width: 100vw; text-align: center'>hello world</p>", //  placeholder render function
+  } = options;
 
   function updatePathAttribute(tag: string, attrName: string) {
     return tag.replace(
@@ -31,24 +100,42 @@ export default function prerenderStaticPlugin(): Plugin {
 
   return {
     name: "vite-plugin-prerender-static",
-    apply: "build" as const, // ✅ literal type (fixes TS error)
-    closeBundle() {
-      const rootDir = process.cwd(); // use project root
-      const distDir = path.resolve(rootDir, "dist");
-      const htmlPath = path.join(distDir, "index.html");
-      const templatePath = path.resolve(rootDir, "template.html");
+    apply: "build" as const,
 
-      if (!fs.existsSync(htmlPath) || !fs.existsSync(templatePath)) {
-        console.warn(
-          "⚠️ Missing index.html or template.html — skipping prerender"
-        );
+    closeBundle() {
+      const htmlPath = path.join(dist, "index.html");
+
+      if (!fs.existsSync(htmlPath)) {
+        console.warn("Missing index.html — skipping prerender");
         return;
       }
 
-      console.log("⚙️  Running prerender-static plugin...");
+      if (!fs.existsSync(template)) {
+        console.warn(
+          `Missing template file at ${template} — skipping prerender`
+        );
+        console.log("Creating a default template.html file...");
+        const defaultTemplate = `<!DOCTYPE html>
+                                <html lang="en">
+                                  <head>
+                                    <meta charset="UTF-8" />
+                                    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+                                    %LINKS%
+                                    <title>%TITLE%</title>
+                                  </head>
+                                  <body>
+                                    <div id="root">%APP%</div>
+                                  </body>
+                                </html>
+                                `;
+        fs.writeFileSync(template, defaultTemplate);
+        console.log(`✅ Created default template at ${template}`);
+      }
+      console.log("Running prerender-static plugin...");
 
       const html = fs.readFileSync(htmlPath, "utf8");
 
+      // extract scripts and links
       const scriptRegex = /<script\b[^>]*>[\s\S]*?<\/script>/gi;
       const linkRegex = /<link\b[^>]*>/gi;
 
@@ -58,20 +145,31 @@ export default function prerenderStaticPlugin(): Plugin {
       scriptTags = scriptTags.map((tag) => updatePathAttribute(tag, "src"));
       linkTags = linkTags.map((tag) => updatePathAttribute(tag, "href"));
 
-      const allTags = [...scriptTags, ...linkTags].join("\n");
-      const template = fs.readFileSync(templatePath, "utf-8");
+      const allTags = [...scriptTags, ...linkTags];
+      const templateHtml = fs.readFileSync(template, "utf-8");
 
       for (const route of routes) {
-        const appHtml = `hello world`;
+        const appHtml = render(route); // dynamic rendering callback
+        const tags =
+          typeof route.tags === "string"
+            ? route.tags
+            : route.tags
+            ? generateSEOTags(route.tags)
+            : "";
 
-        const finalHtml = template
-          .replace("%TITLE%", route.title)
+        const finalHtml = templateHtml
+          .replace(
+            "%TITLE%",
+            route.tags && typeof route.tags !== "string"
+              ? route.tags.title
+              : "Untitled"
+          )
           .replace("%APP%", appHtml)
-          .replace("%LINKS%", allTags);
+          .replace("%LINKS%", [...allTags].join("\n") + "\n" + tags);
 
         const filePath =
           route.path === "/" ? "/index.html" : `${route.path}/index.html`;
-        const fullPath = path.join(distDir, filePath);
+        const fullPath = path.join(dist, filePath);
 
         fs.mkdirSync(path.dirname(fullPath), { recursive: true });
         fs.writeFileSync(fullPath, finalHtml);

@@ -1,12 +1,12 @@
-import { Suspense } from "react";
+import { lazy, Suspense } from "react";
 import { Route, Routes } from "react-router";
 import App from "./App";
-import BgRemover from "./pages/BgRemover";
-import Home from "./pages/Home";
-import HuggingfaceChat from "./pages/HuggingfaceChat";
 
-import Chat from "./pages/Chat";
-import TtsDemo from "./pages/TtsDemo";
+const Home = lazy(() => import("./pages/Home"));
+const Chat = lazy(() => import("./pages/Chat"));
+const TtsDemo = lazy(() => import("./pages/TtsDemo"));
+const HuggingfaceChat = lazy(() => import("./pages/HuggingfaceChat"));
+const BgRemover = lazy(() => import("./pages/BgRemover"));
 
 const routes = [
   {
