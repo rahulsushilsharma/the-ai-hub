@@ -11,13 +11,13 @@ import { ThemeProvider } from "./Theme";
 // Your web app's Firebase configuration
 // For Firebase JS SDK v7.20.0 and later, measurementId is optional
 const firebaseConfig = {
-  apiKey: "AIzaSyCiHfxW8UwhMxFOLXw8S_3UP7vps8fJg-0",
-  authDomain: "rahul-sushil-sharma.firebaseapp.com",
-  projectId: "rahul-sushil-sharma",
-  storageBucket: "rahul-sushil-sharma.firebasestorage.app",
-  messagingSenderId: "817826509214",
-  appId: "1:817826509214:web:caf4203b380d2b39c4a68f",
-  measurementId: "G-MLR789TV0J",
+  apiKey: "AIzaSyC7qCJsDWu0DJhcn16Dhz845lNzhaSkMO4",
+  authDomain: "ai-projects-demo.firebaseapp.com",
+  projectId: "ai-projects-demo",
+  storageBucket: "ai-projects-demo.firebasestorage.app",
+  messagingSenderId: "16837505975",
+  appId: "1:16837505975:web:51f52420a4caadb1ea6e32",
+  measurementId: "G-J5J5GFBCVG",
 };
 
 // Initialize Firebase

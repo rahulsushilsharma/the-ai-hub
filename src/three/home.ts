@@ -33,7 +33,6 @@ const pointLight = new PointLight(0xffffff); // (color, intensity)
 pointLight.position.set(5, 5, 5);
 scene.add(pointLight);
 
-// 💡 Ambient light for soft fill
 const ambientLight = new AmbientLight(0x404040, 0.5);
 scene.add(ambientLight);
 
