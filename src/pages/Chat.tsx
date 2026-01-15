@@ -7,20 +7,44 @@ import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { Textarea } from "@/components/ui/textarea";
 import { useAppStore, useChatSettings } from "@/services/uiStore";
 import type { Message } from "@/types/types";
+import type { ProgressStatusInfo } from "@huggingface/transformers";
 import { Send } from "lucide-react";
-import type { ProgressStatusInfo } from "node_modules/@huggingface/transformers/types/utils/core";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Markdown from "react-markdown";
 
+// ====== TYPE DEFINITIONS ======
+interface WorkerMessage {
+  status: string;
+  [key: string]: any;
+}
+
+interface ThinkingResponse {
+  visible: boolean;
+  content: string;
+}
+
+// ====== HELPER FUNCTIONS ======
+const stripThinkingTags = (text: string): string =>
+  text.replace(/<\/?think>/g, "").trim();
+
+const isThinkingResponse = (content: string): boolean =>
+  /<think>.*?<\/think>/s.test(content);
+
+// ====== MAIN COMPONENT ======
 function Chat() {
-  // Inputs and outputs
+  // ====== STATE MANAGEMENT ======
   const [streaming, setStreaming] = useState(false);
   const [output, setOutput] = useState("");
   const [progress, setProgress] = useState<ProgressStatusInfo | null>(null);
   const [openProgress, setOpenProgress] = useState(false);
+  const [thinking, setThinking] = useState<ThinkingResponse>({
+    visible: false,
+    content: "",
+  });
 
   const worker = useRef<Worker | null>(null);
 
+  // Store selectors
   const sessions = useAppStore((state) => state.sessions);
   const setSessions = useAppStore((state) => state.setSessions);
   const currentSession = useAppStore((state) => state.currentSession);
@@ -30,267 +54,262 @@ function Chat() {
   const model = useChatSettings((state) => state.model);
   const appState = useAppStore((state) => state.appState);
 
+  // ====== EFFECTS ======
+  // Model switching effect
   useEffect(() => {
-    if (worker.current && !appState.settingsOpen) {
+    if (worker.current && !appState.settingsOpen && model.value) {
       worker.current.postMessage({
         type: "chat:switchModel",
         model: model.value,
       });
-      console.log("update model");
+      console.log("Model updated to:", model.value);
     }
   }, [appState.settingsOpen, model.value]);
 
+  // Worker initialization effect
   useEffect(() => {
-    if (!worker.current) {
-      worker.current = new Worker(
-        new URL("../workers/chatWorker.ts", import.meta.url),
-        {
-          type: "module",
-        }
-      );
-    }
+    if (worker.current) return;
 
-    const onMessageReceived = (e: MessageEvent) => {
-      switch (e.data.status) {
+    worker.current = new Worker(
+      new URL("../workers/chatWorker.ts", import.meta.url),
+      { type: "module" }
+    );
+
+    const handleMessage = (e: MessageEvent<WorkerMessage>) => {
+      const data = e.data;
+
+      switch (data.status) {
         case "initiate":
-          setProgress(e.data as ProgressStatusInfo);
-          setOpenProgress(true);
-          break;
-
         case "progress":
-          setOpenProgress(true);
-          setProgress(e.data as ProgressStatusInfo);
-          break;
-
         case "done":
+          setProgress(data);
           setOpenProgress(true);
-          setProgress(e.data as ProgressStatusInfo);
           break;
 
         case "ready":
-          console.log("redy recived");
           setOpenProgress(false);
-          setProgress(e.data as ProgressStatusInfo);
+          setProgress(data);
+          break;
+
+        case "thinking":
+          // Process thinking response if present in content
+          if (data.content && isThinkingResponse(data.content)) {
+            const thinkingContent = stripThinkingTags(data.content);
+            setThinking({
+              visible: true,
+              content: thinkingContent,
+            });
+          }
           break;
 
         case "update":
-          setOpenProgress(false);
-          setOutput((prev) => prev + e.data.output);
+          setOutput((prev) => prev + data.output);
           setStreaming(true);
           break;
 
         case "complete":
-          setOpenProgress(false);
-          setMessages(e.data.output.generated_text);
+          setMessages(data.output.generated_text);
           setStreaming(false);
           setOutput("");
+          setThinking({ visible: false, content: "" });
+          setOpenProgress(false);
           break;
       }
     };
 
-    worker.current.addEventListener("message", onMessageReceived);
-
-    return () => {
-      if (worker.current)
-        worker.current.removeEventListener("message", onMessageReceived);
-    };
+    worker.current.addEventListener("message", handleMessage);
+    return () => worker.current?.removeEventListener("message", handleMessage);
   }, [setMessages]);
 
-  function updateSessions(newSession: { id: string; name: string }) {
-    setSessions([...sessions, newSession]);
-  }
-
-  function handleSend(message: string) {
-    if (currentSession === null) {
-      const newSession = {
-        id: Date.now().toString(),
-        name: message.slice(0, 20),
-      };
-      setCurrentSession(newSession);
-      updateSessions(newSession);
-      setSessions([...sessions, newSession]);
-    }
-    const newMessage: Message = {
-      role: "user",
-      content: message,
-      id: Date.now().toString(),
-      sessionId: currentSession ? currentSession.id : "unknown",
-      timestamp: Date.now(),
-    };
-    setMessages([...messages, newMessage]);
-
-    worker.current?.postMessage({
-      type: "chat:message",
-      messages: [...messages, newMessage],
-    });
-  }
-
-  function localSessions() {
-    const sessions = localStorage.getItem("chat-sessions");
-    if (sessions) {
-      return JSON.parse(sessions);
-    }
-  }
-
-  function localMessages(currentSession: { id: string; name: string } | null) {
-    const messages = localStorage.getItem(
-      "chat-messages:" + currentSession?.id
-    );
-    if (messages) {
-      return JSON.parse(messages);
-    }
-  }
-
+  // Local storage effects
   useEffect(() => {
-    const savedSessions = localSessions();
-    if (savedSessions) {
-      setSessions(savedSessions);
-    }
+    const savedSessions = localStorage.getItem("chat-sessions");
+    if (savedSessions) setSessions(JSON.parse(savedSessions));
   }, [setSessions]);
 
   useEffect(() => {
-    if (sessions.length > 0)
+    if (sessions.length > 0) {
       localStorage.setItem("chat-sessions", JSON.stringify(sessions));
+    }
   }, [sessions]);
 
   useEffect(() => {
-    if (currentSession) {
-      const savedMessages = localMessages(currentSession);
-
-      if (savedMessages) {
-        setMessages(savedMessages);
-      }
-    } else {
+    if (!currentSession) {
       setMessages([]);
+      return;
     }
+
+    const savedMessages = localStorage.getItem(
+      `chat-messages:${currentSession.id}`
+    );
+    if (savedMessages) setMessages(JSON.parse(savedMessages));
   }, [currentSession, setMessages]);
 
   useEffect(() => {
-    if (currentSession) {
+    if (currentSession && messages.length > 0) {
       localStorage.setItem(
-        "chat-messages:" + currentSession.id,
+        `chat-messages:${currentSession.id}`,
         JSON.stringify(messages)
       );
     }
   }, [messages, currentSession]);
 
-  return (
-    <>
-      {" "}
-      <div>
-        <SidebarProvider>
-          <AppSidebar className="h-[100dvh-h-12]" />
-          <SidebarTrigger />
-          <div className="p-4 w-full h-screen flex flex-col gap-4 justify-between">
-            <UserChat
-              messages={messages}
-              output={output}
-              streaming={streaming}
-            />
+  // ====== HANDLERS ======
+  const updateSessions = useCallback(
+    (newSession: { id: string; name: string }) => {
+      setSessions((prev) => [...prev, newSession]);
+    },
+    [setSessions]
+  );
 
+  const handleSend = useCallback(
+    (message: string) => {
+      if (!message.trim()) return;
+
+      // Create new session if none exists
+      if (!currentSession) {
+        const newSession = {
+          id: Date.now().toString(),
+          name: message.slice(0, 20) || "New Chat",
+        };
+        setCurrentSession(newSession);
+        updateSessions(newSession);
+      }
+
+      // Add user message
+      const newMessage: Message = {
+        role: "user",
+        content: message,
+        id: Date.now().toString(),
+        sessionId: currentSession?.id || "unknown",
+        timestamp: Date.now(),
+      };
+
+      setMessages((prev: any) => [...prev, newMessage]);
+
+      // Send to worker
+      worker.current?.postMessage({
+        type: "chat:message",
+        messages: [...messages, newMessage],
+      });
+    },
+    [currentSession, messages, updateSessions, setCurrentSession, setMessages]
+  );
+
+  // ====== RENDER ======
+  return (
+    <SidebarProvider>
+      <AppSidebar className="h-[100dvh]" />
+      <main className="flex flex-col h-screen p-4">
+        <SidebarTrigger className="mb-4" />
+
+        <div className="flex flex-col flex-1 gap-4 overflow-hidden">
+          <ChatMessages
+            messages={messages}
+            output={output}
+            streaming={streaming}
+            thinking={thinking}
+          />
+
+          <div className="mt-auto space-y-4">
             <ModelLoading
               progress={progress}
               open={openProgress}
               onOpenChange={setOpenProgress}
             />
+
             <ModelChatSettings />
-            <div>
+
+            <div className="space-y-2">
               <p className="text-muted-foreground text-sm">{model.label}</p>
               <UserInput onSend={handleSend} />
             </div>
           </div>
-        </SidebarProvider>
-      </div>
-    </>
+        </div>
+      </main>
+    </SidebarProvider>
   );
 }
 
+// ====== SUBCOMPONENTS ======
 interface UserInputProps {
-  onSend?: (message: string) => void;
+  onSend: (message: string) => void;
 }
-function UserInput(props: UserInputProps) {
+
+function UserInput({ onSend }: UserInputProps) {
   const [input, setInput] = useState("");
 
-  function handleSend() {
-    if (props.onSend) {
-      props.onSend(input);
+  const handleSend = useCallback(() => {
+    if (input.trim()) {
+      onSend(input);
+      setInput("");
     }
-    setInput("");
-  }
+  }, [input, onSend]);
 
-  function handleKeyDown(event: React.KeyboardEvent<HTMLTextAreaElement>) {
-    if (event.key === "Enter" && !event.shiftKey) {
-      event.preventDefault();
-      handleSend();
-    }
-  }
+  const handleKeyDown = useCallback(
+    (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+      if (e.key === "Enter" && !e.shiftKey) {
+        e.preventDefault();
+        handleSend();
+      }
+    },
+    [handleSend]
+  );
+
   return (
-    <div className="w-full flex flex-col gap-2 md:flex-row focus-within:ring-2 focus-within:ring-secondary focus-within:ring-offset-2 focus-within:ring-offset-background p-4 rounded-md border border-input">
+    <div className="relative w-full focus-within:ring-2 focus-within:ring-ring/50 rounded-lg border">
       <Textarea
-        placeholder="Type your text here..."
+        placeholder="Message AI..."
         value={input}
         onChange={(e) => setInput(e.target.value)}
         onKeyDown={handleKeyDown}
-        className="w-full max-h-40 min-h-10 border-0 resize-none focus-visible:ring-0 focus-visible:outline-none focus-visible:shadow-none focus-visible:border-0"
+        className="min-h-[48px] max-h-48 resize-none border-0 pr-14 py-3 focus-visible:ring-0 focus-visible:ring-offset-0"
+        autoFocus
       />
-      <div className="flex justify-end flex-col">
-        <Button onClick={handleSend} className="ml-2 " disabled={!input.trim()}>
-          <Send />
-        </Button>
-      </div>
+      <Button
+        onClick={handleSend}
+        disabled={!input.trim()}
+        size="icon"
+        className="absolute right-2 top-2 h-8 w-8"
+      >
+        <Send className="h-4 w-4" />
+      </Button>
     </div>
   );
 }
 
-function UserChat(props: {
-  messages?: Message[];
+interface ChatMessagesProps {
+  messages: Message[];
   output: string;
   streaming?: boolean;
-}) {
+  thinking: ThinkingResponse;
+}
+
+function ChatMessages({
+  messages,
+  output,
+  streaming,
+  thinking,
+}: ChatMessagesProps) {
   return (
-    <div className="flex-1 overflow-y-auto mb-4 h-fit pr-2">
-      {props.messages === undefined || props.messages.length === 0 ? (
-        <div className="flex flex-col justify-center items-center h-full">
-          <p className="text-muted-foreground">
-            Welcome to the chat Playground – start by typing a message!
-          </p>
-        </div>
+    <div className="flex-1 overflow-y-auto pr-2 space-y-4">
+      {messages.length === 0 ? (
+        <WelcomeMessage />
       ) : (
         <>
-          {props.messages?.map((msg, index) => (
-            <div
-              key={index}
-              className={`${
-                msg.role === "user" ? "flex-row-reverse" : ""
-              } flex justify-startgap-2 mb-2 items-center`}
-            >
-              <div>
-                <b>{msg.role === "user" ? "You" : "AI"}</b>
-              </div>
-              <div
-                key={index}
-                className={` ${
-                  msg.role === "user" ? "shadow " : "bg-muted"
-                } p-4 rounded-lg mb-2 max-w-lg ${
-                  msg.role === "user" ? "ml-auto" : ""
-                }`}
-              >
-                <div className="chat-message-content">
-                  <Markdown>{msg.content}</Markdown>
-                </div>
-              </div>
-            </div>
+          {messages.map((msg) => (
+            <ChatMessage key={msg.id} message={msg} />
           ))}
-          {props.streaming && (
-            <div className="flex justify-start gap-2 mb-2 items-center">
-              <div>
-                <b>AI</b>
-              </div>
-              <div className="bg-muted p-4 rounded-lg mb-2 max-w-lg">
-                <div className="chat-message-content">
-                  <MarkdownView docs={props.output} />
-                </div>
-              </div>
+
+          {/* Thinking visualization */}
+          {thinking.visible && thinking.content && (
+            <ThinkingBubble content={thinking.content} />
+          )}
+
+          {/* Streaming response */}
+          {streaming && output && (
+            <div className="ml-auto max-w-[85%] bg-muted rounded-2xl p-4 animate-fade-in">
+              <MarkdownView docs={output} />
             </div>
           )}
         </>
@@ -298,4 +317,72 @@ function UserChat(props: {
     </div>
   );
 }
+
+function WelcomeMessage() {
+  return (
+    <div className="flex flex-col items-center justify-center h-full text-center p-8">
+      <div className="mb-6 bg-gradient-to-r from-primary/20 to-secondary/20 text-primary rounded-2xl p-3">
+        <Send className="h-8 w-8" />
+      </div>
+      <h2 className="text-2xl font-bold mb-2">Welcome to AI Playground</h2>
+      <p className="text-muted-foreground max-w-md">
+        Start a conversation by typing a message below. The AI will respond with
+        both its reasoning process and final answer.
+      </p>
+    </div>
+  );
+}
+
+interface ChatMessageProps {
+  message: Message;
+}
+
+function ChatMessage({ message }: ChatMessageProps) {
+  const isUser = message.role === "user";
+
+  return (
+    <div className={`flex ${isUser ? "justify-end" : "justify-start"}`}>
+      <div
+        className={`max-w-[85%] rounded-2xl p-4 ${
+          isUser ? "bg-primary text-primary-foreground ml-auto" : "bg-muted"
+        }`}
+      >
+        <div className="font-medium mb-1">{isUser ? "You" : "AI"}</div>
+        <div className="prose prose-sm max-w-none">
+          <Markdown>{message.content}</Markdown>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+interface ThinkingBubbleProps {
+  content: string;
+}
+
+function ThinkingBubble({ content }: ThinkingBubbleProps) {
+  return (
+    <div className="animate-fade-in">
+      <div className="flex items-start mb-2">
+        <div className="bg-blue-500/10 text-blue-500 rounded-full p-1 mr-2 mt-1">
+          💭
+        </div>
+        <div className="font-medium text-blue-600 dark:text-blue-400">
+          AI Reasoning Process
+        </div>
+      </div>
+
+      <div className="bg-blue-50/50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-800 rounded-xl p-4 ml-8">
+        <div className="text-sm text-blue-800 dark:text-blue-200 whitespace-pre-wrap">
+          {content}
+        </div>
+      </div>
+
+      <div className="text-center text-xs text-muted-foreground mt-2">
+        (The AI analyzes the question before formulating its response)
+      </div>
+    </div>
+  );
+}
+
 export default Chat;
