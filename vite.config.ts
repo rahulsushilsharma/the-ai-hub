@@ -9,11 +9,11 @@ export const seoConfig = {
     {
       path: "/",
       tags: {
-        title: "Rahul Sharma | AI Developer & Full-Stack Engineer",
+        title: "Rahul Sharma | Generative AI Specialist & Full-Stack Engineer",
         description:
-          "Official website of Rahul Sharma — AI and Full-Stack Developer specializing in GenAI, React, and Python. Explore projects, demos, and tools built for modern developers.",
+          "Portfolio of Rahul Sharma, an AI Developer building high-performance GenAI applications, React interfaces, and Python backends. Explore cutting-edge AI demos and developer tools.",
         keywords:
-          "Rahul Sharma, AI Developer, Full Stack Engineer, GenAI, React, Python, portfolio, web development",
+          "Rahul Sharma, AI Engineer, Full Stack Developer, Generative AI Specialist, React Developer, Python AI, LLM Integration, WebGPU AI",
         image: "https://rahulsharma.ai/assets/og-image.png",
         url: "https://rahulsharma.ai/",
         author: "Rahul Sharma",
@@ -22,22 +22,27 @@ export const seoConfig = {
         robots: "index, follow",
         schema: {
           "@context": "https://schema.org",
-          "@type": "WebSite",
+          "@type": "Person", // Changed to Person to build personal brand authority
           name: "Rahul Sharma",
-          description:
-            "Official portfolio of Rahul Sharma — showcasing AI and full-stack development projects.",
+          jobTitle: "AI Developer & Full-Stack Engineer",
           url: "https://rahulsharma.ai/",
+          description:
+            "Specializing in GenAI, React, and Python to build modern, scalable web applications.",
+          sameAs: [
+            "https://github.com/rahulsharma", // Add your social links here
+            "https://linkedin.com/in/rahulsharma",
+          ],
         },
       },
     },
     {
       path: "/chat",
       tags: {
-        title: "AI Chat | Rahul Sharma",
+        title: "Private Local AI Chat Demo | Rahul Sharma",
         description:
-          "Chat with Rahul Sharma’s custom AI assistant powered by local LLMs and modern web technologies.",
+          "Experience a private, secure AI Chat powered by local LLMs. No data leaves your browser. Fast, interactive GenAI built with modern web technologies.",
         keywords:
-          "AI chat, chatbot, Rahul Sharma, interactive assistant, local LLM, GenAI demo",
+          "Local LLM chat, private AI, browser-based AI, Rahul Sharma, Llama 3 web demo, secure chatbot",
         image: "https://rahulsharma.ai/assets/chat-og.png",
         url: "https://rahulsharma.ai/chat",
         author: "Rahul Sharma",
@@ -46,10 +51,11 @@ export const seoConfig = {
         schema: {
           "@context": "https://schema.org",
           "@type": "WebApplication",
-          name: "AI Chat",
+          name: "Local AI Chat",
           description:
-            "A local AI chat interface built by Rahul Sharma using open-source LLMs.",
-          applicationCategory: "Chatbot",
+            "A privacy-focused local AI chat interface using open-source LLMs.",
+          applicationCategory: "CommunicationApplication",
+          operatingSystem: "Web Browser",
           url: "https://rahulsharma.ai/chat",
         },
       },
@@ -57,11 +63,11 @@ export const seoConfig = {
     {
       path: "/tts-demo",
       tags: {
-        title: "TTS Demo | Rahul Sharma",
+        title: "Real-time Text-to-Speech (TTS) | WebGPU & ONNX Demo",
         description:
-          "Try Rahul Sharma’s Text-to-Speech demo — generate realistic speech locally using ONNX and WebGPU.",
+          "Convert text to realistic speech instantly in your browser. Utilizing WebGPU and ONNX Runtime for high-speed, local neural voice synthesis.",
         keywords:
-          "text to speech, tts demo, AI voice, ONNX, WebGPU, Rahul Sharma",
+          "Text to Speech demo, WebGPU TTS, ONNX Runtime AI, browser speech synthesis, Rahul Sharma AI",
         image: "https://rahulsharma.ai/assets/tts-og.png",
         url: "https://rahulsharma.ai/tts-demo",
         author: "Rahul Sharma",
@@ -70,10 +76,10 @@ export const seoConfig = {
         schema: {
           "@context": "https://schema.org",
           "@type": "SoftwareApplication",
-          name: "TTS Demo",
+          name: "WebGPU Text-to-Speech",
           description:
-            "A browser-based Text-to-Speech demo built by Rahul Sharma using ONNX Runtime and WebGPU.",
-          applicationCategory: "SpeechSynthesis",
+            "High-performance browser-based TTS using ONNX and WebGPU acceleration.",
+          applicationCategory: "MultimediaApplication",
           operatingSystem: "Web",
           url: "https://rahulsharma.ai/tts-demo",
         },
@@ -82,11 +88,11 @@ export const seoConfig = {
     {
       path: "/huggingface-chat",
       tags: {
-        title: "Hugging Face Chat | Rahul Sharma",
+        title: "Hugging Face Model Explorer | Interactive AI Chat",
         description:
-          "Interact with Hugging Face models directly through a sleek chat interface designed by Rahul Sharma.",
+          "Test and interact with the latest Hugging Face LLMs and Transformers through a custom-built, high-performance chat interface.",
         keywords:
-          "Hugging Face, AI chat, transformers, LLM, NLP, Rahul Sharma, GenAI",
+          "Hugging Face API, LLM explorer, Transformers web UI, Rahul Sharma, AI model testing",
         image: "https://rahulsharma.ai/assets/hf-chat-og.png",
         url: "https://rahulsharma.ai/huggingface-chat",
         author: "Rahul Sharma",
@@ -95,10 +101,10 @@ export const seoConfig = {
         schema: {
           "@context": "https://schema.org",
           "@type": "WebApplication",
-          name: "Hugging Face Chat",
+          name: "Hugging Face Chat Interface",
           description:
-            "Chat interface built for Hugging Face models by Rahul Sharma.",
-          applicationCategory: "Chatbot",
+            "A specialized UI for interacting with Hugging Face Inference APIs.",
+          applicationCategory: "DeveloperApplication",
           url: "https://rahulsharma.ai/huggingface-chat",
         },
       },
@@ -106,11 +112,11 @@ export const seoConfig = {
     {
       path: "/bg-remover",
       tags: {
-        title: "AI Background Remover | Rahul Sharma",
+        title: "Free AI Background Remover | Instant & Local",
         description:
-          "Remove image backgrounds instantly using Rahul Sharma’s AI-powered background remover tool — runs fully in the browser.",
+          "Remove image backgrounds for free with one click. 100% private, browser-based processing with no server uploads required.",
         keywords:
-          "background remover, AI tools, image processing, Rahul Sharma, webgpu, fast remove background",
+          "free background remover, AI image tool, remove bg locally, WebGPU image processing, Rahul Sharma",
         image: "https://rahulsharma.ai/assets/bg-remover-og.png",
         url: "https://rahulsharma.ai/bg-remover",
         author: "Rahul Sharma",
@@ -121,8 +127,8 @@ export const seoConfig = {
           "@type": "SoftwareApplication",
           name: "AI Background Remover",
           description:
-            "An in-browser AI background removal tool built by Rahul Sharma using modern web tech.",
-          applicationCategory: "ImageEditing",
+            "An in-browser background removal tool using machine learning.",
+          applicationCategory: "PhotoEditor",
           operatingSystem: "Web",
           url: "https://rahulsharma.ai/bg-remover",
         },
