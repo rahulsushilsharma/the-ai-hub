@@ -57,12 +57,7 @@ export function MarkdownView({ docs }: MarkdownViewProps) {
   };
 
   return (
-    <div
-      className="prose prose-zinc dark:prose-invert max-w-3xl mx-auto p-4 sm:p-6 leading-relaxed
-                 prose-headings:font-semibold prose-h1:text-3xl prose-h2:text-2xl
-                 prose-pre:rounded-xl prose-pre:shadow-md prose-code:text-sm
-                 break-words whitespace-pre-wrap w-full overflow-x-hidden"
-    >
+    <div className="">
       <ReactMarkdown rehypePlugins={[rehypeHighlight]} components={components}>
         {docs}
       </ReactMarkdown>

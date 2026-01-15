@@ -7,44 +7,23 @@ import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { Textarea } from "@/components/ui/textarea";
 import { useAppStore, useChatSettings } from "@/services/uiStore";
 import type { Message } from "@/types/types";
-import type { ProgressStatusInfo } from "@huggingface/transformers";
-import { Send } from "lucide-react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { Bot, Send, User } from "lucide-react";
+import type { ProgressStatusInfo } from "node_modules/@huggingface/transformers/types/utils/core";
+import { useEffect, useRef, useState } from "react";
 import Markdown from "react-markdown";
-
-// ====== TYPE DEFINITIONS ======
-interface WorkerMessage {
-  status: string;
-  [key: string]: any;
-}
-
-interface ThinkingResponse {
-  visible: boolean;
-  content: string;
-}
-
-// ====== HELPER FUNCTIONS ======
-const stripThinkingTags = (text: string): string =>
-  text.replace(/<\/?think>/g, "").trim();
-
-const isThinkingResponse = (content: string): boolean =>
-  /<think>.*?<\/think>/s.test(content);
-
-// ====== MAIN COMPONENT ======
 function Chat() {
-  // ====== STATE MANAGEMENT ======
+  // Inputs and outputs
   const [streaming, setStreaming] = useState(false);
-  const [output, setOutput] = useState("");
+  // const [output, setOutput] = useState("");
   const [progress, setProgress] = useState<ProgressStatusInfo | null>(null);
   const [openProgress, setOpenProgress] = useState(false);
-  const [thinking, setThinking] = useState<ThinkingResponse>({
-    visible: false,
-    content: "",
-  });
+  const [streamThinking, setStreamThinking] = useState("");
+  const [streamAnswer, setStreamAnswer] = useState("");
+
+  const thinkMode = useRef<"none" | "thinking" | "final">("none");
 
   const worker = useRef<Worker | null>(null);
 
-  // Store selectors
   const sessions = useAppStore((state) => state.sessions);
   const setSessions = useAppStore((state) => state.setSessions);
   const currentSession = useAppStore((state) => state.currentSession);
@@ -54,335 +33,390 @@ function Chat() {
   const model = useChatSettings((state) => state.model);
   const appState = useAppStore((state) => state.appState);
 
-  // ====== EFFECTS ======
-  // Model switching effect
   useEffect(() => {
-    if (worker.current && !appState.settingsOpen && model.value) {
+    if (worker.current && !appState.settingsOpen) {
       worker.current.postMessage({
         type: "chat:switchModel",
         model: model.value,
       });
-      console.log("Model updated to:", model.value);
+      console.log("update model");
     }
   }, [appState.settingsOpen, model.value]);
 
-  // Worker initialization effect
   useEffect(() => {
-    if (worker.current) return;
+    if (!worker.current) {
+      worker.current = new Worker(
+        new URL("../workers/chatWorker.ts", import.meta.url),
+        {
+          type: "module",
+        }
+      );
+    }
 
-    worker.current = new Worker(
-      new URL("../workers/chatWorker.ts", import.meta.url),
-      { type: "module" }
-    );
-
-    const handleMessage = (e: MessageEvent<WorkerMessage>) => {
-      const data = e.data;
-
-      switch (data.status) {
+    const onMessageReceived = (e: MessageEvent) => {
+      switch (e.data.status) {
         case "initiate":
-        case "progress":
-        case "done":
-          setProgress(data);
+          setProgress(e.data as ProgressStatusInfo);
           setOpenProgress(true);
           break;
 
+        case "progress":
+          setOpenProgress(true);
+          setProgress(e.data as ProgressStatusInfo);
+          break;
+
+        case "done":
+          setOpenProgress(true);
+          setProgress(e.data as ProgressStatusInfo);
+          break;
+
         case "ready":
+          console.log("redy recived");
           setOpenProgress(false);
-          setProgress(data);
+          setProgress(e.data as ProgressStatusInfo);
           break;
 
-        case "thinking":
-          // Process thinking response if present in content
-          if (data.content && isThinkingResponse(data.content)) {
-            const thinkingContent = stripThinkingTags(data.content);
-            setThinking({
-              visible: true,
-              content: thinkingContent,
-            });
-          }
-          break;
-
-        case "update":
-          setOutput((prev) => prev + data.output);
+        case "update": {
+          setOpenProgress(false);
           setStreaming(true);
-          break;
 
-        case "complete":
-          setMessages(data.output.generated_text);
-          setStreaming(false);
-          setOutput("");
-          setThinking({ visible: false, content: "" });
-          setOpenProgress(false);
+          let chunk = e.data.output as string;
+
+          while (chunk.length) {
+            // entering think
+            if (thinkMode.current !== "thinking" && chunk.includes("<think>")) {
+              const [before, after] = chunk.split("<think>", 2);
+              setStreamAnswer((prev) => prev + before);
+              thinkMode.current = "thinking";
+              chunk = after;
+              continue;
+            }
+
+            // exiting think
+            if (
+              thinkMode.current === "thinking" &&
+              chunk.includes("</think>")
+            ) {
+              const [inside, after] = chunk.split("</think>", 2);
+              setStreamThinking((prev) => prev + inside);
+              thinkMode.current = "final";
+              chunk = after;
+              continue;
+            }
+
+            // normal streaming
+            if (thinkMode.current === "thinking") {
+              setStreamThinking((prev) => prev + chunk);
+            } else {
+              setStreamAnswer((prev) => prev + chunk);
+            }
+
+            break;
+          }
+
           break;
+        }
+
+        case "complete": {
+          setOpenProgress(false);
+
+          const full =
+            (streamThinking ? `<think>${streamThinking}</think>\n` : "") +
+            streamAnswer;
+
+          setMessages([
+            ...messages,
+            {
+              id: Date.now().toString(),
+              role: "assistant",
+              content: full,
+              sessionId: currentSession!.id,
+              timestamp: Date.now(),
+            },
+          ]);
+
+          setStreaming(false);
+          setStreamThinking("");
+          setStreamAnswer("");
+          thinkMode.current = "none";
+          setMessages(e.data.output.generated_text);
+          break;
+        }
       }
     };
 
-    worker.current.addEventListener("message", handleMessage);
-    return () => worker.current?.removeEventListener("message", handleMessage);
+    worker.current.addEventListener("message", onMessageReceived);
+
+    return () => {
+      if (worker.current)
+        worker.current.removeEventListener("message", onMessageReceived);
+    };
   }, [setMessages]);
 
-  // Local storage effects
+  function updateSessions(newSession: { id: string; name: string }) {
+    setSessions([...sessions, newSession]);
+  }
+
+  function handleSend(message: string) {
+    if (currentSession === null) {
+      const newSession = {
+        id: Date.now().toString(),
+        name: message.slice(0, 20),
+      };
+      setCurrentSession(newSession);
+      updateSessions(newSession);
+      setSessions([...sessions, newSession]);
+    }
+    const newMessage: Message = {
+      role: "user",
+      content: message,
+      id: Date.now().toString(),
+      sessionId: currentSession ? currentSession.id : "unknown",
+      timestamp: Date.now(),
+    };
+    setMessages([...messages, newMessage]);
+
+    worker.current?.postMessage({
+      type: "chat:message",
+      messages: [...messages, newMessage],
+    });
+  }
+
+  function localSessions() {
+    const sessions = localStorage.getItem("chat-sessions");
+    if (sessions) {
+      return JSON.parse(sessions);
+    }
+  }
+
+  function localMessages(currentSession: { id: string; name: string } | null) {
+    const messages = localStorage.getItem(
+      "chat-messages:" + currentSession?.id
+    );
+    if (messages) {
+      return JSON.parse(messages);
+    }
+  }
+
   useEffect(() => {
-    const savedSessions = localStorage.getItem("chat-sessions");
-    if (savedSessions) setSessions(JSON.parse(savedSessions));
+    const savedSessions = localSessions();
+    if (savedSessions) {
+      setSessions(savedSessions);
+    }
   }, [setSessions]);
 
   useEffect(() => {
-    if (sessions.length > 0) {
+    if (sessions.length > 0)
       localStorage.setItem("chat-sessions", JSON.stringify(sessions));
-    }
   }, [sessions]);
 
   useEffect(() => {
-    if (!currentSession) {
-      setMessages([]);
-      return;
-    }
+    if (currentSession) {
+      const savedMessages = localMessages(currentSession);
 
-    const savedMessages = localStorage.getItem(
-      `chat-messages:${currentSession.id}`
-    );
-    if (savedMessages) setMessages(JSON.parse(savedMessages));
+      if (savedMessages) {
+        setMessages(savedMessages);
+      }
+    } else {
+      setMessages([]);
+    }
   }, [currentSession, setMessages]);
 
   useEffect(() => {
-    if (currentSession && messages.length > 0) {
+    if (currentSession) {
       localStorage.setItem(
-        `chat-messages:${currentSession.id}`,
+        "chat-messages:" + currentSession.id,
         JSON.stringify(messages)
       );
     }
   }, [messages, currentSession]);
 
-  // ====== HANDLERS ======
-  const updateSessions = useCallback(
-    (newSession: { id: string; name: string }) => {
-      setSessions((prev) => [...prev, newSession]);
-    },
-    [setSessions]
-  );
-
-  const handleSend = useCallback(
-    (message: string) => {
-      if (!message.trim()) return;
-
-      // Create new session if none exists
-      if (!currentSession) {
-        const newSession = {
-          id: Date.now().toString(),
-          name: message.slice(0, 20) || "New Chat",
-        };
-        setCurrentSession(newSession);
-        updateSessions(newSession);
-      }
-
-      // Add user message
-      const newMessage: Message = {
-        role: "user",
-        content: message,
-        id: Date.now().toString(),
-        sessionId: currentSession?.id || "unknown",
-        timestamp: Date.now(),
-      };
-
-      setMessages((prev: any) => [...prev, newMessage]);
-
-      // Send to worker
-      worker.current?.postMessage({
-        type: "chat:message",
-        messages: [...messages, newMessage],
-      });
-    },
-    [currentSession, messages, updateSessions, setCurrentSession, setMessages]
-  );
-
-  // ====== RENDER ======
+  // ====== NEW JSX STRUCTURE STARTS HERE ======
   return (
-    <SidebarProvider>
-      <AppSidebar className="h-[100dvh]" />
-      <main className="flex flex-col h-screen p-4">
-        <SidebarTrigger className="mb-4" />
+    <SidebarProvider className="flex h-screen overflow-hidden">
+      <AppSidebar className="h-full" />
 
-        <div className="flex flex-col flex-1 gap-4 overflow-hidden">
-          <ChatMessages
-            messages={messages}
-            output={output}
-            streaming={streaming}
-            thinking={thinking}
+      <main className="flex flex-col flex-1 overflow-hidden">
+        <header className="flex items-center justify-between border-b p-2.5">
+          <div className="flex items-center gap-2">
+            <SidebarTrigger className="h-7 w-7" />
+            <h1 className="text-sm font-medium">AI Chat</h1>
+          </div>
+          <div className="text-[10px] text-muted-foreground bg-muted px-1.5 py-0.5 rounded">
+            {model.label}
+          </div>
+        </header>
+
+        <div className="flex-1 overflow-y-auto p-3 space-y-2">
+          {messages.length === 0 ? (
+            <div className="flex flex-col items-center justify-center h-full text-center py-8">
+              <div className="mb-3 p-1.5 bg-primary/10 rounded-lg">
+                <Bot className="h-4 w-4 text-primary" />
+              </div>
+              <h2 className="text-base font-medium mb-0.5">
+                Welcome to AI Playground
+              </h2>
+              <p className="text-muted-foreground max-w-md text-xs">
+                Start a conversation below. The AI will show its reasoning
+                process.
+              </p>
+            </div>
+          ) : (
+            <>
+              {messages.map((msg) => {
+                const hasThinking = /<think>.*?<\/think>/s.test(msg.content);
+                const thinkingContent = hasThinking
+                  ? msg.content.match(/<think>(.*?)<\/think>/s)?.[1]?.trim() ||
+                    ""
+                  : "";
+                const mainContent = msg.content
+                  .replace(/<think>.*?<\/think>/s, "")
+                  .trim();
+
+                return (
+                  <div
+                    key={msg.id}
+                    className={`flex ${
+                      msg.role === "user" ? "justify-end" : "justify-start"
+                    }`}
+                  >
+                    {msg.role !== "user" && (
+                      <div className="flex flex-col items-center mr-1.5 mt-0.5">
+                        <div className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center">
+                          <Bot className="h-3.5 w-3.5 text-primary" />
+                        </div>
+                      </div>
+                    )}
+
+                    <div className="flex flex-col max-w-[85%] gap-0.5">
+                      {/* Thinking bubble */}
+                      {hasThinking && (
+                        <div className="flex items-start gap-1.5 -mt-0.5">
+                          <div className="bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-800 rounded-lg p-1.5 text-xs">
+                            <Markdown>{thinkingContent}</Markdown>
+                            <div className="text-right mt-0.5">
+                              <span className="text-[8px] text-blue-600 dark:text-blue-400">
+                                Reasoning
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Main message bubble */}
+                      <div
+                        className={`rounded-xl p-2.5 ${
+                          msg.role === "user"
+                            ? "bg-primary text-primary-foreground ml-auto"
+                            : "bg-muted"
+                        }`}
+                      >
+                        <MarkdownView docs={mainContent} />
+                      </div>
+                    </div>
+
+                    {msg.role === "user" && (
+                      <div className="ml-1.5 mt-0.5">
+                        <div className="w-6 h-6 rounded-full bg-secondary flex items-center justify-center">
+                          <User className="h-3.5 w-3.5 text-secondary-foreground" />
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+
+              {/* Streaming content */}
+              {streaming && (streamThinking || streamAnswer) && (
+                <div className="flex  max-w-[85%] gap-1">
+                  <div className="flex flex-col items-center mr-1.5 mt-0.5">
+                    <div className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center">
+                      <Bot className="h-3.5 w-3.5 text-primary" />
+                    </div>
+                  </div>
+                  <div className="flex flex-col max-w-[85%] gap-1">
+                    {/* Thinking */}
+                    {streamThinking && (
+                      <div className="bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-800 rounded-lg p-2 text-xs animate-pulse">
+                        <Markdown>{streamThinking}</Markdown>
+                      </div>
+                    )}
+
+                    {/* Answer */}
+                    {streamAnswer && (
+                      <div className="bg-muted rounded-xl p-2.5 animate-pulse">
+                        <MarkdownView docs={streamAnswer} />
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+            </>
+          )}
+        </div>
+
+        <footer className="border-t p-2.5 bg-background/50">
+          <ModelLoading
+            progress={progress}
+            open={openProgress}
+            onOpenChange={setOpenProgress}
           />
 
-          <div className="mt-auto space-y-4">
-            <ModelLoading
-              progress={progress}
-              open={openProgress}
-              onOpenChange={setOpenProgress}
-            />
-
+          <div className="space-y-2 mt-1.5">
             <ModelChatSettings />
 
-            <div className="space-y-2">
-              <p className="text-muted-foreground text-sm">{model.label}</p>
-              <UserInput onSend={handleSend} />
+            <UserInput onSend={handleSend} />
+
+            <div className="flex justify-between items-center text-[9px] text-muted-foreground px-0.5">
+              <div>{model.label}</div>
+              <div>⏎ send • ⇧+⏎ line</div>
             </div>
           </div>
-        </div>
+        </footer>
       </main>
     </SidebarProvider>
   );
 }
 
-// ====== SUBCOMPONENTS ======
 interface UserInputProps {
-  onSend: (message: string) => void;
+  onSend?: (message: string) => void;
 }
-
-function UserInput({ onSend }: UserInputProps) {
+function UserInput(props: UserInputProps) {
   const [input, setInput] = useState("");
 
-  const handleSend = useCallback(() => {
-    if (input.trim()) {
-      onSend(input);
-      setInput("");
+  function handleSend() {
+    if (props.onSend) {
+      props.onSend(input);
     }
-  }, [input, onSend]);
+    setInput("");
+  }
 
-  const handleKeyDown = useCallback(
-    (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-      if (e.key === "Enter" && !e.shiftKey) {
-        e.preventDefault();
-        handleSend();
-      }
-    },
-    [handleSend]
-  );
+  function handleKeyDown(event: React.KeyboardEvent<HTMLTextAreaElement>) {
+    if (event.key === "Enter" && !event.shiftKey) {
+      event.preventDefault();
+      handleSend();
+    }
+  }
 
   return (
-    <div className="relative w-full focus-within:ring-2 focus-within:ring-ring/50 rounded-lg border">
+    <div className="relative w-full focus-within:ring-2 focus-within:ring-ring/50 rounded-xl border">
       <Textarea
-        placeholder="Message AI..."
+        placeholder="Message AI... (type your question here)"
         value={input}
         onChange={(e) => setInput(e.target.value)}
         onKeyDown={handleKeyDown}
-        className="min-h-[48px] max-h-48 resize-none border-0 pr-14 py-3 focus-visible:ring-0 focus-visible:ring-offset-0"
+        className="min-h-[56px] max-h-48 resize-none border-0 pr-14 py-3 focus-visible:ring-0 focus-visible:ring-offset-0"
         autoFocus
       />
       <Button
         onClick={handleSend}
         disabled={!input.trim()}
         size="icon"
-        className="absolute right-2 top-2 h-8 w-8"
+        className="absolute right-3 bottom-3 h-9 w-9 rounded-full"
       >
         <Send className="h-4 w-4" />
       </Button>
     </div>
   );
 }
-
-interface ChatMessagesProps {
-  messages: Message[];
-  output: string;
-  streaming?: boolean;
-  thinking: ThinkingResponse;
-}
-
-function ChatMessages({
-  messages,
-  output,
-  streaming,
-  thinking,
-}: ChatMessagesProps) {
-  return (
-    <div className="flex-1 overflow-y-auto pr-2 space-y-4">
-      {messages.length === 0 ? (
-        <WelcomeMessage />
-      ) : (
-        <>
-          {messages.map((msg) => (
-            <ChatMessage key={msg.id} message={msg} />
-          ))}
-
-          {/* Thinking visualization */}
-          {thinking.visible && thinking.content && (
-            <ThinkingBubble content={thinking.content} />
-          )}
-
-          {/* Streaming response */}
-          {streaming && output && (
-            <div className="ml-auto max-w-[85%] bg-muted rounded-2xl p-4 animate-fade-in">
-              <MarkdownView docs={output} />
-            </div>
-          )}
-        </>
-      )}
-    </div>
-  );
-}
-
-function WelcomeMessage() {
-  return (
-    <div className="flex flex-col items-center justify-center h-full text-center p-8">
-      <div className="mb-6 bg-gradient-to-r from-primary/20 to-secondary/20 text-primary rounded-2xl p-3">
-        <Send className="h-8 w-8" />
-      </div>
-      <h2 className="text-2xl font-bold mb-2">Welcome to AI Playground</h2>
-      <p className="text-muted-foreground max-w-md">
-        Start a conversation by typing a message below. The AI will respond with
-        both its reasoning process and final answer.
-      </p>
-    </div>
-  );
-}
-
-interface ChatMessageProps {
-  message: Message;
-}
-
-function ChatMessage({ message }: ChatMessageProps) {
-  const isUser = message.role === "user";
-
-  return (
-    <div className={`flex ${isUser ? "justify-end" : "justify-start"}`}>
-      <div
-        className={`max-w-[85%] rounded-2xl p-4 ${
-          isUser ? "bg-primary text-primary-foreground ml-auto" : "bg-muted"
-        }`}
-      >
-        <div className="font-medium mb-1">{isUser ? "You" : "AI"}</div>
-        <div className="prose prose-sm max-w-none">
-          <Markdown>{message.content}</Markdown>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-interface ThinkingBubbleProps {
-  content: string;
-}
-
-function ThinkingBubble({ content }: ThinkingBubbleProps) {
-  return (
-    <div className="animate-fade-in">
-      <div className="flex items-start mb-2">
-        <div className="bg-blue-500/10 text-blue-500 rounded-full p-1 mr-2 mt-1">
-          💭
-        </div>
-        <div className="font-medium text-blue-600 dark:text-blue-400">
-          AI Reasoning Process
-        </div>
-      </div>
-
-      <div className="bg-blue-50/50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-800 rounded-xl p-4 ml-8">
-        <div className="text-sm text-blue-800 dark:text-blue-200 whitespace-pre-wrap">
-          {content}
-        </div>
-      </div>
-
-      <div className="text-center text-xs text-muted-foreground mt-2">
-        (The AI analyzes the question before formulating its response)
-      </div>
-    </div>
-  );
-}
-
 export default Chat;
