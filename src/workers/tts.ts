@@ -7,10 +7,7 @@ let tts: PiperTTS | null = null;
 self.addEventListener("message", async (event) => {
   if (event.data.type === "init") {
     try {
-      console.log("loading...");
-
       tts = await PiperTTS.from_pretrained();
-      console.log("loaded");
       self.postMessage({
         type: "model:loaded",
         message: "pipelines ready",

@@ -15,7 +15,6 @@ interface ModelLoadingProps {
 }
 function ModelLoading(props: ModelLoadingProps) {
   const progress: ProgressStatusInfo | null = props.progress;
-  console.log("Rendering ModelLoading with props:", props.progress);
   return (
     <>
       <Dialog open={props.open} onOpenChange={props.onOpenChange}>

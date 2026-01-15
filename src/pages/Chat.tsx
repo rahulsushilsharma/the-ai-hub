@@ -11,8 +11,8 @@ import { Bot, Send, User } from "lucide-react";
 import type { ProgressStatusInfo } from "node_modules/@huggingface/transformers/types/utils/core";
 import { useEffect, useRef, useState } from "react";
 import Markdown from "react-markdown";
+
 function Chat() {
-  // Inputs and outputs
   const [streaming, setStreaming] = useState(false);
   // const [output, setOutput] = useState("");
   const [progress, setProgress] = useState<ProgressStatusInfo | null>(null);
@@ -21,6 +21,7 @@ function Chat() {
   const [streamAnswer, setStreamAnswer] = useState("");
 
   const thinkMode = useRef<"none" | "thinking" | "final">("none");
+  const messagesEndRef = useRef<HTMLDivElement>(null); // Added ref
 
   const worker = useRef<Worker | null>(null);
 
@@ -33,13 +34,22 @@ function Chat() {
   const model = useChatSettings((state) => state.model);
   const appState = useAppStore((state) => state.appState);
 
+  // Added scroll helper
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  };
+
+  // Added effect to auto-scroll on new content
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages, streamAnswer, streamThinking]);
+
   useEffect(() => {
     if (worker.current && !appState.settingsOpen) {
       worker.current.postMessage({
         type: "chat:switchModel",
         model: model.value,
       });
-      console.log("update model");
     }
   }, [appState.settingsOpen, model.value]);
 
@@ -71,7 +81,6 @@ function Chat() {
           break;
 
         case "ready":
-          console.log("redy recived");
           setOpenProgress(false);
           setProgress(e.data as ProgressStatusInfo);
           break;
@@ -83,7 +92,6 @@ function Chat() {
           let chunk = e.data.output as string;
 
           while (chunk.length) {
-            // entering think
             if (thinkMode.current !== "thinking" && chunk.includes("<think>")) {
               const [before, after] = chunk.split("<think>", 2);
               setStreamAnswer((prev) => prev + before);
@@ -92,7 +100,6 @@ function Chat() {
               continue;
             }
 
-            // exiting think
             if (
               thinkMode.current === "thinking" &&
               chunk.includes("</think>")
@@ -104,7 +111,6 @@ function Chat() {
               continue;
             }
 
-            // normal streaming
             if (thinkMode.current === "thinking") {
               setStreamThinking((prev) => prev + chunk);
             } else {
@@ -231,7 +237,6 @@ function Chat() {
     }
   }, [messages, currentSession]);
 
-  // ====== NEW JSX STRUCTURE STARTS HERE ======
   return (
     <SidebarProvider className="flex h-screen overflow-hidden">
       <AppSidebar className="h-full" />
@@ -289,7 +294,6 @@ function Chat() {
                     )}
 
                     <div className="flex flex-col max-w-[85%] gap-0.5">
-                      {/* Thinking bubble */}
                       {hasThinking && (
                         <div className="flex items-start gap-1.5 -mt-0.5">
                           <div className="bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-800 rounded-lg p-1.5 text-xs">
@@ -303,7 +307,6 @@ function Chat() {
                         </div>
                       )}
 
-                      {/* Main message bubble */}
                       <div
                         className={`rounded-xl p-2.5 ${
                           msg.role === "user"
@@ -326,7 +329,6 @@ function Chat() {
                 );
               })}
 
-              {/* Streaming content */}
               {streaming && (streamThinking || streamAnswer) && (
                 <div className="flex  max-w-[85%] gap-1">
                   <div className="flex flex-col items-center mr-1.5 mt-0.5">
@@ -335,14 +337,11 @@ function Chat() {
                     </div>
                   </div>
                   <div className="flex flex-col max-w-[85%] gap-1">
-                    {/* Thinking */}
                     {streamThinking && (
                       <div className="bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-800 rounded-lg p-2 text-xs animate-pulse">
                         <Markdown>{streamThinking}</Markdown>
                       </div>
                     )}
-
-                    {/* Answer */}
                     {streamAnswer && (
                       <div className="bg-muted rounded-xl p-2.5 animate-pulse">
                         <MarkdownView docs={streamAnswer} />
@@ -353,6 +352,8 @@ function Chat() {
               )}
             </>
           )}
+          {/* Added anchor div for auto-scroll */}
+          <div ref={messagesEndRef} />
         </div>
 
         <footer className="border-t p-2.5 bg-background/50">

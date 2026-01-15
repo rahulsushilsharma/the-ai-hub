@@ -23,7 +23,6 @@ class LLMCompletionPipeline {
     }
 
     if (!this.instances[this.currentModel]) {
-      console.log(`Loading model: ${modelConfig.label}`);
       this.task = "text-generation";
       this.instances[this.currentModel] = (await pipeline(
         this.task,
@@ -64,6 +63,7 @@ class LLMCompletionPipeline {
 self.addEventListener("message", async (event) => {
   let llm = await LLMCompletionPipeline.getInstance((x) => {
     self.postMessage(x);
+    console.log(x);
   });
 
   if (llm === undefined) {

@@ -12,7 +12,6 @@ export default function HuggingfaceChat() {
     );
     const text = response.then((res) => res.text());
     text.then((data) => {
-      console.log("Fetched text:", data);
       setDocs(data);
     });
   }, []);

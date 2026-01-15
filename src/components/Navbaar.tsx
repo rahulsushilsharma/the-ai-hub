@@ -50,7 +50,6 @@ function ThemeButton() {
   }, [scope, setTheme]);
 
   function changeTheme() {
-    console.log("change theme");
     if (theme === "light") {
       //   setTheme("dark");
       scope.current?.methods.darkTheme();
