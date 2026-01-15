@@ -5,46 +5,102 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import type { ProgressStatusInfo } from "node_modules/@huggingface/transformers/types/utils/core";
+import type { ProgressInfo } from "@huggingface/transformers";
+import { useEffect, useState } from "react";
 import { Progress } from "./ui/progress";
-interface ModelLoadingProps {
-  progress: ProgressStatusInfo | null;
 
+interface ModelLoadingProps {
+  progress: ProgressInfo | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
-function ModelLoading(props: ModelLoadingProps) {
-  const progress: ProgressStatusInfo | null = props.progress;
+
+function ModelLoading({ progress, open, onOpenChange }: ModelLoadingProps) {
+  const [filesProgress, setFilesProgress] = useState<
+    Record<string, ProgressInfo>
+  >({});
+
+  useEffect(() => {
+    if (!progress) return;
+
+    if (progress.status === "ready") {
+      console.log("Model is ready:", progress.model);
+      return;
+    }
+
+    setFilesProgress((prev) => ({
+      ...prev,
+      [progress.file]: progress,
+    }));
+  }, [progress]);
+
+  const filesList = Object.values(filesProgress);
+  const modelName = filesList.find((f) => "name" in f)?.name || "Model";
+
   return (
-    <>
-      <Dialog open={props.open} onOpenChange={props.onOpenChange}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Loading Models</DialogTitle>
-            <DialogDescription>
-              Loading models may take a while, please be patient. This is a
-              one-time process.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="grid gap-4 py-4">
-            <h3 className="text-lg font-medium">{progress?.name}</h3>
-          </div>
-          <div className="grid gap-4 py-4">
-            <div className="text-sm text-muted-foreground">
-              Loading File: {progress?.file}
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-[425px]">
+        <DialogHeader>
+          <DialogTitle>Loading {modelName}</DialogTitle>
+          <DialogDescription>
+            Downloading model components to your local browser cache.
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="grid gap-4 py-4 max-h-[60vh] overflow-y-auto pr-2">
+          {filesList.length === 0 && (
+            <div className="text-sm text-muted-foreground text-center">
+              Initializing...
             </div>
-          </div>
-          <div className="grid gap-4 py-4">
-            <Progress value={progress?.progress} />
-            <div className="text-sm text-muted-foreground">
-              {progress?.progress
-                ? `${progress?.progress.toFixed(2)}%`
-                : "Loading..."}
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
-    </>
+          )}
+
+          {filesList.map((fileInfo) => {
+            const isDone = fileInfo.status === "done";
+            const isProgress = fileInfo.status === "progress";
+
+            const progressValue = isDone
+              ? 100
+              : isProgress
+              ? fileInfo.progress
+              : 0;
+            const fileName =
+              "file" in fileInfo ? fileInfo.file : "Unknown File";
+
+            return (
+              <div key={fileName} className="grid gap-2 mb-2">
+                <div className="flex items-center justify-between text-xs">
+                  <span
+                    className="font-medium truncate max-w-[220px]"
+                    title={fileName}
+                  >
+                    {fileName}
+                  </span>
+                  <span className="text-muted-foreground capitalize">
+                    {isDone
+                      ? "Done"
+                      : isProgress
+                      ? `${progressValue.toFixed(0)}%`
+                      : fileInfo.status}
+                  </span>
+                </div>
+
+                <Progress value={progressValue} className="h-2" />
+
+                {isProgress && (
+                  <div className="flex justify-between text-[10px] text-muted-foreground">
+                    <span>
+                      {(fileInfo.loaded / 1024 / 1024).toFixed(2)} MB /{" "}
+                      {(fileInfo.total / 1024 / 1024).toFixed(2)} MB
+                    </span>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }
+
 export default ModelLoading;

@@ -34,12 +34,10 @@ function Chat() {
   const model = useChatSettings((state) => state.model);
   const appState = useAppStore((state) => state.appState);
 
-  // Added scroll helper
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
 
-  // Added effect to auto-scroll on new content
   useEffect(() => {
     scrollToBottom();
   }, [messages, streamAnswer, streamThinking]);
@@ -352,7 +350,6 @@ function Chat() {
               )}
             </>
           )}
-          {/* Added anchor div for auto-scroll */}
           <div ref={messagesEndRef} />
         </div>
 

@@ -51,10 +51,8 @@ function ThemeButton() {
 
   function changeTheme() {
     if (theme === "light") {
-      //   setTheme("dark");
       scope.current?.methods.darkTheme();
     } else {
-      //   setTheme("light");
       scope.current?.methods.lightTheme();
     }
   }
