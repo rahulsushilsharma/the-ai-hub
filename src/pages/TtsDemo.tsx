@@ -29,7 +29,6 @@ export default function TtsDemo() {
     );
     const text = response.then((res) => res.text());
     text.then((data) => {
-      console.log("Fetched text:", data);
       setDocs(data);
     });
     if (!worker.current) {

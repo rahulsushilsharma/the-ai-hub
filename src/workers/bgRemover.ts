@@ -35,7 +35,6 @@ class BgRemoverPipeline {
 self.addEventListener("message", async (event) => {
   const bgRemover = await BgRemoverPipeline.getInstance((x) => {
     self.postMessage(x);
-    console.log(x);
   });
 
   if (bgRemover === undefined) {
@@ -46,7 +45,6 @@ self.addEventListener("message", async (event) => {
   switch (event.data.type) {
     case "image": {
       const output1 = await bgRemover(event.data.image, {});
-      console.log(output1);
       self.postMessage({
         status: "complete",
         output: output1[0],

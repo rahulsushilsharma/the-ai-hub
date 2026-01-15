@@ -1,13 +1,6 @@
 import type { Model } from "@/types/types";
-
+// first model is the default
 const CHAT_MODELS: Model[] = [
-  {
-    label: "SmolLM2-135M-Instruct",
-    value: "onnx-community/SmolLM2-135M-Instruct-ONNX-GQA",
-    device: "webgpu",
-    type: "local",
-    dtype: undefined,
-  },
   {
     label: "Qwen3-0.6B",
     value: "onnx-community/Qwen3-0.6B-ONNX",
@@ -15,6 +8,14 @@ const CHAT_MODELS: Model[] = [
     dtype: "q4f16",
     type: "local",
   },
+  {
+    label: "SmolLM2-135M-Instruct",
+    value: "onnx-community/SmolLM2-135M-Instruct-ONNX-GQA",
+    device: "webgpu",
+    type: "local",
+    dtype: undefined,
+  },
+
   {
     label: "gemma-3-270m-it",
     value: "onnx-community/gemma-3-270m-it-ONNX",
