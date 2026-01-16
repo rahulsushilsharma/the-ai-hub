@@ -143,7 +143,6 @@ function Chat() {
           setStreamThinking("");
           setStreamAnswer("");
           thinkMode.current = "none";
-          setMessages(e.data.output.generated_text);
           break;
         }
       }
@@ -155,7 +154,7 @@ function Chat() {
       if (worker.current)
         worker.current.removeEventListener("message", onMessageReceived);
     };
-  }, [setMessages]);
+  }, [currentSession, messages, setMessages, streamAnswer, streamThinking]);
 
   function updateSessions(newSession: { id: string; name: string }) {
     setSessions([...sessions, newSession]);
