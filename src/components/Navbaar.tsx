@@ -1,9 +1,43 @@
 import { useTheme } from "@/Theme";
 import { Scope, animate, createScope, spring } from "animejs";
-import { Menu, Moon, Sun, X } from "lucide-react";
+import {
+  Bot,
+  Home,
+  ImageIcon,
+  Menu,
+  MessageCircle,
+  Mic,
+  Moon,
+  Sun,
+  X,
+} from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router";
 import { Button } from "./ui/button";
+
+const navItems = [
+  { label: "Home", path: "/", icon: <Home className="w-4 h-4" /> },
+  {
+    label: "AI Chat",
+    path: "/chat",
+    icon: <MessageCircle className="w-3 h-3" />,
+  },
+  {
+    label: "Speech (TTS)",
+    path: "/tts-demo",
+    icon: <Mic className="w-3 h-3" />,
+  },
+  {
+    label: "Hugging Face",
+    path: "/huggingface-chat",
+    icon: <Bot className="w-3 h-3" />,
+  },
+  {
+    label: "Background Remover",
+    path: "/bg-remover",
+    icon: <ImageIcon className="w-3 h-3" />,
+  },
+];
 
 function ThemeButton() {
   const { theme, setTheme } = useTheme();
@@ -83,7 +117,7 @@ export default function Navbar() {
 
       self.add("openNavbar", () => {
         animate(".navbar", {
-          x: { to: "15dvw", ease: spring({ bounce: 0.5 }) },
+          x: { to: "5dvw", ease: spring({ bounce: 0.5 }) },
           opacity: { to: 1, ease: "easeInOut", duration: 300 },
 
           duration: 900,
@@ -135,47 +169,56 @@ export default function Navbar() {
       >
         <Menu />
       </Button>
-      <nav className="flex gap-1 h-12 items-center px-4 shadow-md fixed top-3 left-0 right-0 z-99 navbar w-[70vw] rounded-md bg-accent">
-        <Button className="p-0.5" onClick={() => navigate("/")} variant="link">
-          Home
-        </Button>
-        <Button
-          className="p-0.5"
-          onClick={() => navigate("/chat")}
-          variant="link"
-        >
-          Chat
-        </Button>
-        <Button
-          className="p-0.5"
-          onClick={() => navigate("/tts-demo")}
-          variant="link"
-        >
-          TTS Demo
-        </Button>
+      <nav
+        className="
+     flex gap-1 h-12 items-center px-4 shadow-md fixed top-3 left-0 right-0 z-99 navbar w-[90vw] rounded-md bg-accent
+    itms-center justify-between
+  "
+      >
+        <div className="flex  items-center gap-1">
+          {navItems.map((item) => (
+            <Button
+              key={item.path}
+              variant="ghost"
+              onClick={() => {
+                navigate(item.path);
+                setIsOpen(false);
+              }}
+              className="
+              flex items-center justify-center
+       md:justify-start
+    gap-0 md:gap-3
+           px-3 py-3
+    md:py-1
+    text-base md:text-sm
+  "
+              aria-label={item.label}
+              title={item.label}
+            >
+              {item.icon}
 
-        <Button
-          className="p-0.5"
-          onClick={() => navigate("/huggingface-chat")}
-          variant="link"
-        >
-          huggingface chat
-        </Button>
-        <Button
-          className="p-0.5"
-          onClick={() => navigate("/bg-remover")}
-          variant="link"
-        >
-          Background Remover
-        </Button>
-        <Button
-          className="ml-auto "
-          onClick={() => setIsOpen((isOpen) => !isOpen)}
-          variant="outline"
-        >
-          <X />
-        </Button>
-        <ThemeButton />
+              {/* Hide text on mobile, show on desktop */}
+              <span className="hidden md:inline">{item.label}</span>
+            </Button>
+          ))}
+        </div>
+
+        <div className=" flex items-center gap-1  ">
+          <ThemeButton />
+
+          <Button
+            onClick={() => setIsOpen(false)}
+            variant="ghost"
+            className="flex items-center justify-center
+    md:justify-start
+    gap-0 md:gap-3
+    px-3 py-3
+    md:py-1
+    text-base md:text-sm"
+          >
+            <X />
+          </Button>
+        </div>
       </nav>
     </div>
   );

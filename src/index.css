@@ -183,6 +183,45 @@ body {
   body {
     @apply bg-background text-foreground;
   }
+
+  /* Targeted at the whole document */
+  html {
+    scrollbar-gutter: stable;
+    /* Prevents layout shift when scrollbar appears */
+  }
+
+  /* Chrome, Edge, and Safari */
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: transparent;
+    /* Keep it clean and minimal */
+  }
+
+  ::-webkit-scrollbar-thumb {
+    /* Match your purple-500/pink-500 theme */
+    background-color: theme('colors.orange.500 / 30%');
+    border-radius: 20px;
+    /* The 'border' creates a padding effect around the thumb */
+    border: 3px solid transparent;
+    background-clip: content-box;
+    transition: background-color 0.3s ease;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    /* Brightens to your pink-500 on hover */
+    background-color: theme('colors.orange.500 / 60%');
+  }
+
+  /* Firefox Support */
+  * {
+    scrollbar-width: thin;
+    /* thumb color | track color */
+    scrollbar-color: theme('colors.orange.500 / 40%') transparent;
+  }
 }
 
 .gradient-text {
