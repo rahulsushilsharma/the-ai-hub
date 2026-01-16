@@ -75,7 +75,7 @@ export default function Navbar() {
   const navigate = useNavigate();
   const root = useRef(null);
   const scope = useRef<Scope | null>(null);
-  const [isOpen, setIsOpen] = useState(true);
+  const [isOpen, setIsOpen] = useState(false);
 
   useEffect(() => {
     scope.current = createScope({ root }).add((self) => {

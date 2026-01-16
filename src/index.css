@@ -184,3 +184,16 @@ body {
     @apply bg-background text-foreground;
   }
 }
+
+.gradient-text {
+  background-image: linear-gradient(to bottom right, var(--tw-gradient-stops));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.gradient-mask {
+  background-image: linear-gradient(to bottom right, var(--tw-gradient-stops));
+  -webkit-mask: currentColor;
+  mask: currentColor;
+}

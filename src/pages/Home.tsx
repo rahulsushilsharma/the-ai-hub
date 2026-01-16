@@ -273,15 +273,30 @@ function Home() {
   ];
 
   return (
-    <div ref={root} className="pt-20 min-h-screen">
+    <div ref={root} className="pt-24 min-h-screen relative overflow-hidden">
+      {/* Ambient Background Glow */}
+      <div className="absolute inset-0 -z-10">
+        <div
+          className="
+          absolute top-1/2 left-1/2
+          w-[600px] h-[600px]
+          -translate-x-1/2 -translate-y-1/2
+          bg-gradient-to-br from-primary/20 via-purple-500/20 to-pink-500/20
+          blur-3xl rounded-full
+        "
+        />
+      </div>
+
       {/* Hero Section */}
-      <div className="text-container">
-        <h1 className="text-4xl md:text-5xl font-bold text-center mb-4">
-          The AI Hub
+      <div className="text-container mb-20">
+        <h1 className="text-5xl md:text-6xl font-extrabold text-center mb-6 tracking-tight">
+          <span className="bg-gradient-to-br from-primary via-purple-500 to-pink-500 bg-clip-text text-transparent">
+            The AI Hub
+          </span>
         </h1>
-        <p className="text-center text-muted-foreground text-lg max-w-2xl mx-auto">
-          A showcase of cutting-edge AI applications running entirely in your
-          browser
+        <p className="text-center text-muted-foreground text-lg md:text-xl max-w-2xl mx-auto leading-relaxed">
+          A collection of privacy-first, browser-native AI experiences powered
+          by modern web technologies.
         </p>
       </div>
 
@@ -296,7 +311,7 @@ function Home() {
                     <div
                       className={`w-3 h-3 rounded-2xl m-auto mt-2 heart circle-${cell.circle}  opacity-[0.01]`}
                     >
-                      <Settings className="w-3 h-3 gear stroke-red-500 mix-blend-plus-darker" />
+                      <Settings className="w-3 h-3 gear stroke-purple-500  mix-blend-plus-darker" />
                     </div>
                   </div>
                 ) : (
@@ -309,53 +324,97 @@ function Home() {
       </div>
 
       {/* Apps Grid */}
-      <div className="container mx-auto px-4 pb-16">
-        <div className="text-center mb-12 text-container">
-          <h2 className="text-3xl font-bold mb-4">Explore AI Applications</h2>
+      <div className="container mx-auto px-4 pb-20">
+        <div className="text-center mb-14 text-container">
+          <h2 className="text-3xl md:text-4xl font-bold mb-4">
+            Explore AI Applications
+          </h2>
           <p className="text-muted-foreground max-w-2xl mx-auto">
-            Each application demonstrates different AI capabilities, all
-            processed locally in your browser for privacy and speed.
+            Each application runs fully in your browser, delivering speed,
+            privacy, and cutting-edge AI performance.
           </p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-6 max-w-6xl mx-auto">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-6xl mx-auto">
           {apps.map((app, index) => {
             const Icon = app.icon;
             return (
               <div
                 key={app.title}
-                className="text-container group relative bg-card border rounded-xl p-6 hover:shadow-lg transition-all duration-300 hover:scale-[1.02]"
-                style={{ animationDelay: `${index * 100}ms` }}
+                style={{ animationDelay: `${index * 80}ms` }}
+                className="
+                text-container group relative
+                rounded-2xl border
+                bg-background/60 backdrop-blur-xl
+                p-6
+                transition-all duration-300
+                hover:-translate-y-1 hover:shadow-2xl
+                hover:border-primary/40
+                animate-in fade-in slide-in-from-bottom-4
+              "
               >
-                <div className="flex items-start gap-4">
-                  <div className="p-3 bg-primary/10 rounded-lg group-hover:bg-primary/20 transition-colors">
+                {/* Gradient Hover Overlay */}
+                <div
+                  className="
+                  absolute inset-0 rounded-2xl
+                  bg-gradient-to-br from-primary/10 via-transparent to-purple-500/10
+                  opacity-0 group-hover:opacity-100
+                  transition-opacity
+                "
+                />
+
+                <div className="relative flex items-start gap-5">
+                  {/* Icon */}
+                  <div
+                    className="
+                    p-3 rounded-xl
+                    bg-gradient-to-br from-primary/20 to-purple-500/20
+                    ring-1 ring-primary/20
+                    group-hover:ring-primary/40
+                    transition-all
+                  "
+                  >
                     <Icon className="w-6 h-6 text-primary" />
                   </div>
+
                   <div className="flex-1">
                     <h3 className="text-xl font-semibold mb-2">{app.title}</h3>
+
                     <p className="text-muted-foreground mb-4 leading-relaxed">
                       {app.description}
                     </p>
 
                     {/* Features */}
-                    <div className="flex flex-wrap gap-2 mb-4">
+                    <div className="flex flex-wrap gap-2 mb-5">
                       {app.features.map((feature) => (
                         <span
                           key={feature}
-                          className="text-xs px-2 py-1 bg-secondary rounded-full text-secondary-foreground"
+                          className="
+                          text-xs px-3 py-1 rounded-full
+                          bg-muted/60 backdrop-blur
+                          border border-border/50
+                        "
                         >
                           {feature}
                         </span>
                       ))}
                     </div>
 
-                    {/* CTA Button */}
+                    {/* CTA */}
                     <Link
                       to={app.route}
-                      className="inline-flex items-center gap-2 text-primary hover:text-primary/80 transition-colors font-medium"
+                      className="
+                      inline-flex items-center gap-2
+                      text-primary font-medium
+                      relative
+                      after:absolute after:left-0 after:-bottom-0.5
+                      after:h-px after:w-0 after:bg-primary
+                      after:transition-all after:duration-300
+                      hover:after:w-full
+                    "
                     >
-                      Try Now
-                      <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                      Try now
+                      <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />
                     </Link>
                   </div>
                 </div>
@@ -364,11 +423,12 @@ function Home() {
           })}
         </div>
 
-        {/* Tech Stack Section */}
-        <div className="mt-16 text-center text-container">
-          <h3 className="text-2xl font-bold mb-4">
+        {/* Tech Stack */}
+        <div className="mt-20 text-center text-container">
+          <h3 className="text-2xl font-bold mb-6">
             Powered by Modern Web Technologies
           </h3>
+
           <div className="flex flex-wrap justify-center gap-3 max-w-4xl mx-auto">
             {[
               "React 19",
@@ -382,7 +442,14 @@ function Home() {
             ].map((tech) => (
               <span
                 key={tech}
-                className="px-4 py-2 bg-muted rounded-full text-sm font-medium"
+                className="
+                px-4 py-2 rounded-full
+                bg-background/70 backdrop-blur
+                border border-border/50
+                text-sm font-medium
+                hover:border-primary/40
+                transition-colors
+              "
               >
                 {tech}
               </span>
@@ -390,6 +457,7 @@ function Home() {
           </div>
         </div>
       </div>
+
       <Footer />
     </div>
   );
