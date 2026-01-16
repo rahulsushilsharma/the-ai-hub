@@ -20,7 +20,7 @@ const navItems = [
   {
     label: "AI Chat",
     path: "/chat",
-    icon: <MessageCircle className="w-3 h-3" />,
+    icon: <MessageCircle className="w-3 h-3 " />,
   },
   {
     label: "Speech (TTS)",
@@ -184,14 +184,10 @@ export default function Navbar() {
                 navigate(item.path);
                 setIsOpen(false);
               }}
-              className="
-              flex items-center justify-center
-       md:justify-start
-    gap-0 md:gap-3
-           px-3 py-3
-    md:py-1
-    text-base md:text-sm
-  "
+              className={`
+  flex items-center justify-center md:justify-start px-2 md:px-3 hover:scale-110 transition-transform
+  ${location.pathname === item.path ? "bg-muted" : ""}
+`}
               aria-label={item.label}
               title={item.label}
             >
