@@ -101,6 +101,9 @@ importers:
       tts-pipelines:
         specifier: ^0.2.7
         version: 0.2.7(onnxruntime-web@1.23.0)
+      vite-plugin-prerender-static:
+        specifier: ^0.1.2
+        version: 0.1.2(vite@7.1.7(@types/node@24.5.2)(jiti@2.6.0)(lightningcss@1.30.1)(tsx@4.20.6))
       zustand:
         specifier: ^5.0.8
         version: 5.0.8(@types/react@19.1.15)(react@19.1.1)
@@ -2584,6 +2587,9 @@ packages:
     resolution: {integrity: sha512-UXWMKhLOwVKb728IUtQPXxfYU+usdybtUrK/8uGE8CQMvrhOpwvzDBwj0QhSL7MQc7vIsISBG8VQ8+IDQxpfQA==}
     engines: {node: '>=0.10.0'}
 
+  spa-prerender-static@0.1.0:
+    resolution: {integrity: sha512-cOXRLGTQ/xyghr06xqj0vFiyxBD9NURO4QlEEJyhDU8YgUia9DXy/mdbpJ2sMfLYTL6qz3f/cc/Ha8s14RAEXg==}
+
   space-separated-tokens@2.0.2:
     resolution: {integrity: sha512-PEGlAwrG8yXGXRjW32fGbg66JAlOAwbObuqVoJpv/mRgoWDQfgH1wDPvtzWyUSNAXBGSk8h755YDbbcEy3SH2Q==}
 
@@ -2752,6 +2758,11 @@ packages:
 
   vfile@6.0.3:
     resolution: {integrity: sha512-KzIbH/9tXat2u30jf+smMwFCsno4wHVdNmzFyL+T/L3UGqqk6JKfVqOFOZEpZSHADH1k40ab6NUIXZq422ov3Q==}
+
+  vite-plugin-prerender-static@0.1.2:
+    resolution: {integrity: sha512-HvasFhc9qGFsRVIwmNBWizQBh1GN/odrNl/y6bYzVtiqzislwdn8k66zS1+9NBJi3ySzjzJKQ3QqRyKxxF5wjw==}
+    peerDependencies:
+      vite: ^4 || ^5 || ^6 || ^7
 
   vite@7.1.7:
     resolution: {integrity: sha512-VbA8ScMvAISJNJVbRDTJdCwqQoAareR/wutevKanhR2/1EkoXVZVkkORaYm/tNVCjP/UDTKtcw3bAkwOUdedmA==}
@@ -5495,6 +5506,8 @@ snapshots:
 
   source-map-js@1.2.1: {}
 
+  spa-prerender-static@0.1.0: {}
+
   space-separated-tokens@2.0.2: {}
 
   sprintf-js@1.1.3: {}
@@ -5671,6 +5684,11 @@ snapshots:
     dependencies:
       '@types/unist': 3.0.3
       vfile-message: 4.0.3
+
+  vite-plugin-prerender-static@0.1.2(vite@7.1.7(@types/node@24.5.2)(jiti@2.6.0)(lightningcss@1.30.1)(tsx@4.20.6)):
+    dependencies:
+      spa-prerender-static: 0.1.0
+      vite: 7.1.7(@types/node@24.5.2)(jiti@2.6.0)(lightningcss@1.30.1)(tsx@4.20.6)
 
   vite@7.1.7(@types/node@24.5.2)(jiti@2.6.0)(lightningcss@1.30.1)(tsx@4.20.6):
     dependencies:
