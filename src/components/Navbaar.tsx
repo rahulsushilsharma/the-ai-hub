@@ -28,7 +28,7 @@ const navItems = [
     icon: <Mic className="w-3 h-3" />,
   },
   {
-    label: "Hugging Face",
+    label: "hf Chat",
     path: "/huggingface-chat",
     icon: <Bot className="w-3 h-3" />,
   },
