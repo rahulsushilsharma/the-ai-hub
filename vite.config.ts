@@ -18,13 +18,13 @@ export const seoConfig = {
           "Building the future of the web with Generative AI and React. See my live demos 🚀",
 
         twitterCard: "summary_large_image",
-        twitterSite: "@yourusername",
+        twitterSite: "@rahulsharma0_0",
         twitterTitle: "Rahul Sharma | AI Developer",
         twitterDescription:
           "Full-stack engineer specializing in GenAI, Python, and high-performance web apps.",
 
-        image: "https://rahulsharma.ai/assets/og-home.png",
-        url: "https://rahulsharma.ai/",
+        image: "https://ai.rahulsharma.app/assets/web-app-manifest-192x192.png",
+        url: "https://ai.rahulsharma.app/",
 
         keywords:
           "Rahul Sharma, AI Developer, GenAI, WebGPU, Full-Stack Engineer, React, Portfolio",
@@ -33,7 +33,7 @@ export const seoConfig = {
           "@context": "https://schema.org",
           "@type": "Person",
           name: "Rahul Sharma",
-          url: "https://rahulsharma.ai",
+          url: "https://ai.rahulsharma.app/",
           jobTitle: "AI Developer & Full-Stack Engineer",
           sameAs: ["https://github.com/rahulsushilsharma"],
         },
@@ -56,8 +56,8 @@ export const seoConfig = {
         twitterDescription:
           "Experience the power of LLMs running entirely in your browser. Privacy by design.",
 
-        image: "https://rahulsharma.ai/assets/chat-og.png",
-        url: "https://rahulsharma.ai/chat",
+        image: "https://ai.rahulsharma.app/assets/web-app-manifest-192x192.png",
+        url: "https://ai.rahulsharma.app/chat",
 
         keywords:
           "Local LLM, Private AI Chat, Browser AI, GenAI, WebGPU, Privacy First AI",
@@ -68,7 +68,7 @@ export const seoConfig = {
           name: "Private AI Chat",
           applicationCategory: "DeveloperTool",
           operatingSystem: "Web",
-          url: "https://rahulsharma.ai/chat",
+          url: "https://ai.rahulsharma.app/chat",
         },
       },
     },
@@ -89,8 +89,8 @@ export const seoConfig = {
         twitterDescription:
           "Neural Text-to-Speech that runs locally. No cloud latency, just instant voice.",
 
-        image: "https://rahulsharma.ai/assets/tts-og.png",
-        url: "https://rahulsharma.ai/tts-demo",
+        image: "https://ai.rahulsharma.app/assets/web-app-manifest-192x192.png",
+        url: "https://ai.rahulsharma.app/tts-demo",
 
         keywords:
           "Text to Speech, WebGPU TTS, Neural Voice, Browser AI, ONNX, AI Voice",
@@ -101,7 +101,7 @@ export const seoConfig = {
           name: "WebGPU Text-to-Speech",
           applicationCategory: "MultimediaApplication",
           operatingSystem: "Web",
-          url: "https://rahulsharma.ai/tts-demo",
+          url: "https://ai.rahulsharma.app/tts-demo",
         },
       },
     },
@@ -122,8 +122,8 @@ export const seoConfig = {
         twitterDescription:
           "Interact with the best of open-source AI in one clean dashboard.",
 
-        image: "https://rahulsharma.ai/assets/hf-chat-og.png",
-        url: "https://rahulsharma.ai/huggingface-chat",
+        image: "https://ai.rahulsharma.app/assets/web-app-manifest-192x192.png",
+        url: "https://ai.rahulsharma.app/huggingface-chat",
 
         keywords:
           "Hugging Face, Open Source LLM, AI Chat, Model Testing, Transformers",
@@ -134,7 +134,7 @@ export const seoConfig = {
           name: "Hugging Face Chat",
           applicationCategory: "DeveloperTool",
           operatingSystem: "Web",
-          url: "https://rahulsharma.ai/huggingface-chat",
+          url: "https://ai.rahulsharma.app/huggingface-chat",
         },
       },
     },
@@ -155,8 +155,8 @@ export const seoConfig = {
         twitterDescription:
           "High-quality image cutouts in seconds, powered by browser-based AI.",
 
-        image: "https://rahulsharma.ai/assets/bg-remover-og.png",
-        url: "https://rahulsharma.ai/bg-remover",
+        image: "https://ai.rahulsharma.app/assets/web-app-manifest-192x192.png",
+        url: "https://ai.rahulsharma.app/bg-remover",
 
         keywords:
           "AI Background Remover, Image Cutout, Browser AI, Free Background Removal",
@@ -167,7 +167,7 @@ export const seoConfig = {
           name: "AI Background Remover",
           applicationCategory: "DesignApplication",
           operatingSystem: "Web",
-          url: "https://rahulsharma.ai/bg-remover",
+          url: "https://ai.rahulsharma.app/bg-remover",
         },
       },
     },
