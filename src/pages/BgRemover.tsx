@@ -1,14 +1,8 @@
 "use client";
 
+import Footer from "@/components/Footer";
 import ModelLoading from "@/components/ModelLoading";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardFooter,
-  CardHeader,
-} from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import type { RawImage } from "@huggingface/transformers";
@@ -23,6 +17,12 @@ import type { ProgressStatusInfo } from "node_modules/@huggingface/transformers/
 import { useEffect, useRef, useState } from "react";
 import BgRemoverWorker from "../workers/bgRemover.ts?worker";
 
+const statusConfig = {
+  ready: { label: "Ready to load", color: "text-green-400", dot: "bg-green-400" },
+  loading: { label: "Loading model...", color: "text-yellow-400", dot: "bg-yellow-400 animate-pulse" },
+  done: { label: "Model loaded", color: "text-emerald-400", dot: "bg-emerald-400" },
+};
+
 export default function BgRemover() {
   const [inputImage, setInputImage] = useState<string>("");
   const [resultImage, setResultImage] = useState<string>("");
@@ -32,19 +32,17 @@ export default function BgRemover() {
   const [openProgress, setOpenProgress] = useState(false);
   const worker = useRef<Worker | null>(null);
 
-  // Converts raw RGBA image to a usable data URL
   async function rawImageToDataURL(rawImage: RawImage): Promise<string> {
     const canvas = document.createElement("canvas");
     canvas.width = rawImage.width;
     canvas.height = rawImage.height;
     const ctx = canvas.getContext("2d");
     if (!ctx) throw new Error("Unable to get 2D rendering context");
-    const imageData = new ImageData(
-      new Uint8ClampedArray(rawImage.data),
-      rawImage.width,
-      rawImage.height
+    ctx.putImageData(
+      new ImageData(new Uint8ClampedArray(rawImage.data), rawImage.width, rawImage.height),
+      0,
+      0
     );
-    ctx.putImageData(imageData, 0, 0);
     return canvas.toDataURL("image/png");
   }
 
@@ -53,7 +51,6 @@ export default function BgRemover() {
 
     const onMessage = async (e: MessageEvent) => {
       const { status, output } = e.data;
-
       switch (status) {
         case "error":
           console.error(e.data.message);
@@ -109,124 +106,134 @@ export default function BgRemover() {
     link.click();
   };
 
-  const getStatusBadge = () => {
-    switch (loading) {
-      case "ready":
-        return (
-          <Badge className="bg-green-50 text-green-700 border-green-200">
-            🟢 Ready
-          </Badge>
-        );
-      case "loading":
-        return (
-          <Badge className="bg-yellow-50 text-yellow-700 border-yellow-200">
-            ⏳ Loading model...
-          </Badge>
-        );
-      case "done":
-        return (
-          <Badge className="bg-emerald-50 text-emerald-700 border-emerald-200">
-            ✅ Model Loaded
-          </Badge>
-        );
-    }
-  };
+  const status = statusConfig[loading];
 
   return (
-    <main className="container max-w-2xl mx-auto py-10 px-4 pt-20 relative">
-      <ModelLoading
-        progress={progress}
-        open={openProgress}
-        onOpenChange={setOpenProgress}
-      />
+    <div className="pt-16 md:pt-24 min-h-screen relative overflow-x-hidden">
+      {/* Ambient glow */}
+      <div className="absolute inset-0 -z-10 pointer-events-none">
+        <div className="absolute top-1/4 left-1/2 w-[300px] h-[300px] md:w-[600px] md:h-[600px] -translate-x-1/2 -translate-y-1/2 bg-gradient-to-br from-primary/20 via-purple-500/20 to-pink-500/20 blur-[80px] md:blur-3xl rounded-full" />
+      </div>
 
-      {/* Image Processing Loader Overlay */}
+      <ModelLoading progress={progress} open={openProgress} onOpenChange={setOpenProgress} />
 
-      <Card className="shadow-lg border border-gray-200/70 rounded-2xl relative z-10">
-        <CardHeader className="text-center space-y-2">
-          <h1 className="text-2xl font-semibold flex items-center justify-center gap-2">
-            🖼️ Background Remover
-          </h1>
-          <p className="text-muted-foreground text-sm">
-            Remove backgrounds from images locally in your browser.
-          </p>
-        </CardHeader>
-
-        <CardContent className="space-y-6">
-          <div className="flex justify-center">{getStatusBadge()}</div>
-
-          <div className="flex justify-center">
-            <Button
-              onClick={loadModel}
-              disabled={loading === "loading"}
-              className="flex items-center gap-2"
-            >
-              {loading === "loading" ? (
-                <>
-                  <Loader2 className="animate-spin w-4 h-4" /> Loading...
-                </>
-              ) : (
-                <>
-                  <Rocket className="w-4 h-4" />{" "}
-                  {loading === "ready" ? "Load Model" : "Reload Model"}
-                </>
-              )}
-            </Button>
+      <div className="container max-w-2xl mx-auto px-4 pb-16">
+        {/* Page header */}
+        <div className="text-center mb-10">
+          <div className="inline-flex p-3 rounded-xl bg-gradient-to-br from-primary/20 to-purple-500/20 ring-1 ring-primary/20 mb-4">
+            <ImageIcon className="w-6 h-6 text-primary" />
           </div>
+          <h1 className="text-3xl md:text-4xl font-extrabold tracking-tight mb-3">
+            <span className="bg-gradient-to-br from-primary via-purple-500 to-pink-500 bg-clip-text text-transparent">
+              Background Remover
+            </span>
+          </h1>
+          <p className="text-muted-foreground text-sm md:text-base max-w-md mx-auto">
+            Remove backgrounds from images locally in your browser — zero uploads, full privacy.
+          </p>
+          <div className="flex flex-wrap justify-center gap-1.5 mt-4">
+            {["Local AI", "ONNX Runtime", "Privacy-first", "WebGPU"].map((f) => (
+              <span
+                key={f}
+                className="text-[10px] md:text-xs px-2.5 py-0.5 rounded-full bg-muted/60 backdrop-blur border border-border/50"
+              >
+                {f}
+              </span>
+            ))}
+          </div>
+        </div>
 
-          <div className="space-y-3">
-            <Label htmlFor="picture">Upload Image</Label>
-            <Input
-              id="picture"
-              type="file"
-              accept="image/*"
-              onChange={handleImageChange}
-            />
+        {/* Main card */}
+        <div className="group relative rounded-2xl border bg-background/60 backdrop-blur-xl p-5 md:p-6 transition-all duration-300 hover:shadow-2xl hover:border-primary/40">
+          <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-primary/10 via-transparent to-purple-500/10 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
+
+          <div className="relative space-y-6">
+            {/* Status */}
+            <div className="flex items-center justify-center gap-2">
+              <span className={`w-2 h-2 rounded-full ${status.dot}`} />
+              <span className={`text-sm font-medium ${status.color}`}>{status.label}</span>
+            </div>
+
+            {/* Load model */}
+            <div className="flex justify-center">
+              <Button
+                onClick={loadModel}
+                disabled={loading === "loading"}
+                className="flex items-center gap-2"
+              >
+                {loading === "loading" ? (
+                  <><Loader2 className="animate-spin w-4 h-4" /> Loading...</>
+                ) : (
+                  <><Rocket className="w-4 h-4" /> {loading === "ready" ? "Load Model" : "Reload Model"}</>
+                )}
+              </Button>
+            </div>
+
+            {/* Upload */}
+            <div className="space-y-2">
+              <Label htmlFor="picture" className="text-sm font-medium">Upload Image</Label>
+              <Input
+                id="picture"
+                type="file"
+                accept="image/*"
+                onChange={handleImageChange}
+                className="border-border/50 bg-muted/30"
+              />
+            </div>
+
+            {/* Processing state */}
             {processing && (
-              <div className="inset-0 bg-secondary/70 backdrop-blur-sm flex flex-col items-center justify-center z-50 rounded-xl">
-                <Loader2 className="w-8 h-8 animate-spin mb-2" />
-                <p className="text-sm font-medium">Processing image...</p>
-              </div>
-            )}
-            {inputImage && (
-              <div className="flex flex-col items-center gap-2 mt-4">
-                <h4 className="text-sm font-medium text-gray-700 flex items-center gap-1">
-                  <ImageIcon className="w-4 h-4" /> Original Image
-                </h4>
-                <img
-                  src={inputImage}
-                  alt="Input"
-                  className="rounded-lg max-h-64 object-contain border"
-                />
+              <div className="flex flex-col items-center justify-center gap-2 py-4">
+                <Loader2 className="w-8 h-8 animate-spin text-primary" />
+                <p className="text-sm text-muted-foreground">Processing image...</p>
               </div>
             )}
 
+            {/* Images */}
+            {inputImage && (
+              <div className={`grid gap-4 ${resultImage ? "grid-cols-2" : "grid-cols-1"}`}>
+                <div className="flex flex-col items-center gap-2">
+                  <span className="text-xs font-medium text-muted-foreground flex items-center gap-1">
+                    <ImageIcon className="w-3.5 h-3.5" /> Original
+                  </span>
+                  <img
+                    src={inputImage}
+                    alt="Input"
+                    className="rounded-xl max-h-56 object-contain border border-border/50 w-full"
+                  />
+                </div>
+                {resultImage && (
+                  <div className="flex flex-col items-center gap-2">
+                    <span className="text-xs font-medium text-emerald-400 flex items-center gap-1">
+                      <CheckCircle className="w-3.5 h-3.5" /> Result
+                    </span>
+                    <img
+                      src={resultImage}
+                      alt="Background Removed"
+                      className="rounded-xl max-h-56 object-contain border border-border/50 w-full"
+                    />
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Download */}
             {resultImage && (
-              <div className="border-t pt-4 mt-4 flex flex-col items-center">
-                <h4 className="text-sm font-medium mb-2 flex items-center gap-1 text-gray-700">
-                  <CheckCircle className="w-4 h-4 text-green-500" /> Result
-                </h4>
-                <img
-                  src={resultImage}
-                  alt="Background Removed"
-                  className="rounded-lg w-full max-h-64 object-contain border"
-                />
-                <Button
-                  onClick={handleDownload}
-                  variant="secondary"
-                  className="mt-3 flex items-center gap-2"
-                >
+              <div className="flex justify-center pt-2">
+                <Button onClick={handleDownload} variant="secondary" className="flex items-center gap-2">
                   <Download className="w-4 h-4" /> Download Image
                 </Button>
               </div>
             )}
           </div>
-        </CardContent>
+        </div>
 
-        <CardFooter className="text-center text-xs text-muted-foreground">
-          Built with ❤️ using local browser inference
-        </CardFooter>
-      </Card>
-    </main>
+        <p className="text-center text-xs text-muted-foreground mt-6">
+          All processing happens locally — your images never leave your device.
+        </p>
+      </div>
+
+      <Footer />
+    </div>
   );
 }

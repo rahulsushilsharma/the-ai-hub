@@ -52,13 +52,13 @@ function AppRouter() {
         {routes.map((route, index) => {
           const { path, element, children } = route;
           return (
-            <Route
-              key={index}
-              path={path}
-              element={<PageLoader>{element}</PageLoader>}
-            >
+            <Route key={index} path={path} element={element}>
               {children?.map((child, index) => (
-                <Route key={index} path={child.path} element={child.element} />
+                <Route
+                  key={index}
+                  path={child.path}
+                  element={<PageLoader>{child.element}</PageLoader>}
+                />
               ))}
             </Route>
           );
