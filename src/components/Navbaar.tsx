@@ -94,7 +94,11 @@ function ThemeButton() {
   return (
     <>
       <div ref={root} className="relative z-10">
-        <Button onClick={() => changeTheme()} className="z-9 relative">
+        <Button
+          onClick={() => changeTheme()}
+          className="z-9 relative"
+          aria-label={`Switch to ${theme === "light" ? "dark" : "light"} theme`}
+        >
           {theme === "light" ? <Sun /> : <Moon />}
         </Button>
         <div
@@ -164,6 +168,9 @@ export default function Navbar() {
   return (
     <div ref={root}>
       <Button
+        aria-label="Open navigation"
+        aria-expanded={isOpen}
+        inert={isOpen}
         className="fixed top-3 right-3 z-99 openButton shadow-md"
         onClick={() => setIsOpen((isOpen) => !isOpen)}
         variant="outline"
@@ -171,6 +178,8 @@ export default function Navbar() {
         <Menu />
       </Button>
       <nav
+        aria-label="Main"
+        inert={!isOpen}
         className="
      flex gap-1 h-12 items-center px-4 shadow-md fixed top-3 left-0 right-0 z-99 navbar w-[90vw] rounded-md bg-accent
     justify-between
@@ -205,6 +214,7 @@ export default function Navbar() {
           <ThemeButton />
 
           <Button
+            aria-label="Close navigation"
             onClick={() => setIsOpen(false)}
             variant="ghost"
             className="flex items-center justify-center

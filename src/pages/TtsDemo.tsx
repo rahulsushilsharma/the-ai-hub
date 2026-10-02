@@ -72,8 +72,8 @@ export default function TtsDemo() {
 
           <div className="relative space-y-5">
             {/* Status */}
-            <div className="flex items-center justify-center gap-2">
-              <span className={`w-2 h-2 rounded-full ${status.dot}`} />
+            <div role="status" className="flex items-center justify-center gap-2">
+              <span aria-hidden="true" className={`w-2 h-2 rounded-full ${status.dot}`} />
               <span className={`text-sm font-medium ${status.color}`}>{status.label}</span>
             </div>
 

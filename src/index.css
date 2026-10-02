@@ -197,8 +197,28 @@ body {
 
   /* Targeted at the whole document */
   html {
+    scroll-behavior: smooth;
     scrollbar-gutter: stable;
     /* Prevents layout shift when scrollbar appears */
+  }
+
+  a:focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+    border-radius: 2px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    html {
+      scroll-behavior: auto;
+    }
+    *,
+    ::before,
+    ::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
   }
 
   /* Chrome, Edge, and Safari */

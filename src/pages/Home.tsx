@@ -252,6 +252,9 @@ function Home() {
         );
     });
 
+    if (matchMedia("(prefers-reduced-motion: reduce)").matches)
+      return () => scope.current?.revert();
+
     animate(".text-container", {
       y: [-200, 0],
       opacity: [0, 1],
@@ -358,7 +361,10 @@ function Home() {
       </dl>
 
       {/* Animated Heart/Gear - Scaled for smaller screens */}
-      <div className="flex justify-center items-center mt-4 mb-12 md:mt-8 md:mb-16">
+      <div
+        aria-hidden="true"
+        className="flex justify-center items-center mt-4 mb-12 md:mt-8 md:mb-16"
+      >
         <div className="scale-90 sm:scale-100 origin-center">
           {heartGrid.map((row, rowIndex) => (
             <div key={rowIndex} className="flex">
