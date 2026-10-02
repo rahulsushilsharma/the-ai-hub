@@ -7,6 +7,7 @@ const Chat = lazy(() => import("./pages/Chat"));
 const TtsDemo = lazy(() => import("./pages/TtsDemo"));
 const HuggingfaceChat = lazy(() => import("./pages/HuggingfaceChat"));
 const BgRemover = lazy(() => import("./pages/BgRemover"));
+const NotFound = lazy(() => import("./pages/NotFound"));
 
 const routes = [
   {
@@ -35,14 +36,14 @@ const routes = [
       },
       {
         path: "*",
-        element: <Home />,
+        element: <NotFound />,
       },
     ],
   },
 ];
 
 function PageLoader({ children }: { children: React.ReactNode }) {
-  return <Suspense fallback={<div>Loading...</div>}>{children}</Suspense>;
+  return <Suspense fallback={<div role="status" className="p-8 pt-24 font-mono text-sm text-muted-foreground">Loading…</div>}>{children}</Suspense>;
 }
 
 function AppRouter() {

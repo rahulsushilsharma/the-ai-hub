@@ -31,13 +31,13 @@ function Footer() {
   return (
     <footer
       ref={root}
-      className="mt-auto border-t bg-background/80 backdrop-blur-sm"
+      className="mt-auto border-t bg-background"
     >
       <div className="container mx-auto px-4 py-6">
         <div className="flex flex-col items-center justify-center gap-2 text-center">
           <div className="footer-text flex items-center gap-2 text-muted-foreground">
             <span>Made with</span>
-            <Heart className="heart-icon w-4 h-4 text-red-500 fill-red-500" />
+            <Heart className="heart-icon w-4 h-4 text-secondary fill-secondary" />
             <span>by</span>
             <a
               href="https://github.com/rahulsushilsharma"
