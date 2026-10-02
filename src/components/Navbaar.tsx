@@ -12,7 +12,7 @@ import {
   X,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
-import { useNavigate } from "react-router";
+import { useLocation, useNavigate } from "react-router";
 import { Button } from "./ui/button";
 
 const navItems = [
@@ -107,6 +107,7 @@ function ThemeButton() {
 }
 export default function Navbar() {
   const navigate = useNavigate();
+  const { pathname } = useLocation();
   const root = useRef(null);
   const scope = useRef<Scope | null>(null);
   const [isOpen, setIsOpen] = useState(false);
@@ -172,7 +173,7 @@ export default function Navbar() {
       <nav
         className="
      flex gap-1 h-12 items-center px-4 shadow-md fixed top-3 left-0 right-0 z-99 navbar w-[90vw] rounded-md bg-accent
-    itms-center justify-between
+    justify-between
   "
       >
         <div className="flex  items-center gap-1">
@@ -186,9 +187,10 @@ export default function Navbar() {
               }}
               className={`
   flex items-center justify-center md:justify-start px-2 md:px-3 hover:scale-110 transition-transform
-  ${location.pathname === item.path ? "bg-muted" : ""}
+  ${pathname === item.path ? "bg-muted" : ""}
 `}
               aria-label={item.label}
+              aria-current={pathname === item.path ? "page" : undefined}
               title={item.label}
             >
               {item.icon}

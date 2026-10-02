@@ -321,25 +321,15 @@ function Home() {
       ref={root}
       className="pt-16 md:pt-24 min-h-screen relative overflow-x-hidden"
     >
-      {/* Ambient Background Glow - Optimized for mobile viewports */}
+      {/* Ambient glow: single soft coral wash, no gradient fade */}
       <div className="absolute inset-0 -z-10 pointer-events-none">
-        <div
-          className="
-        absolute top-1/4 left-1/2
-        w-[300px] h-[300px] md:w-[600px] md:h-[600px]
-        -translate-x-1/2 -translate-y-1/2
-        bg-gradient-to-br from-primary/20 via-primary/20 to-secondary/20
-        blur-[80px] md:blur-3xl rounded-full
-      "
-        />
+        <div className="absolute top-1/4 left-1/2 size-[300px] md:size-[560px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-secondary/15 blur-[90px] md:blur-3xl" />
       </div>
 
       {/* Hero Section */}
       <div className="text-container px-6 mb-12 md:mb-20">
-        <h1 className="text-4xl md:text-6xl font-extrabold text-center mb-4 tracking-tight">
-          <span className="bg-gradient-to-br from-primary via-primary to-secondary bg-clip-text text-transparent">
-            The AI Hub
-          </span>
+        <h1 className="text-5xl md:text-7xl font-semibold text-center mb-5 tracking-tighter leading-[1.02]">
+          The AI Hub
         </h1>
         <p className="text-center text-muted-foreground text-base md:text-xl max-w-2xl mx-auto leading-relaxed">
           A collection of privacy-first, browser-native AI experiences powered
@@ -396,8 +386,8 @@ function Home() {
       {/* Apps Grid */}
       <div className="container mx-auto px-4 pb-16 md:pb-20">
         <div className="text-center mb-10 md:mb-14 text-container px-2">
-          <h2 className="text-2xl md:text-4xl font-bold mb-3 md:mb-4">
-            Explore AI Applications
+          <h2 className="text-3xl md:text-5xl font-semibold tracking-tight mb-3 md:mb-4">
+            Explore the apps
           </h2>
           <p className="text-sm md:text-base text-muted-foreground max-w-2xl mx-auto">
             Each application runs fully in your browser, delivering speed,
@@ -414,32 +404,23 @@ function Home() {
                 style={{ animationDelay: `${index * 80}ms` }}
                 className="
               text-container group relative
-              rounded-2xl border
-              bg-background/60 backdrop-blur-xl
+              rounded-xl border
+              bg-card
               p-5 md:p-6
               transition-all duration-300
-              hover:shadow-2xl
+              hover:-translate-y-0.5
               hover:border-primary/40
+              hover:shadow-[0_12px_32px_-12px_color-mix(in_oklab,var(--primary)_35%,transparent)]
               animate-in fade-in slide-in-from-bottom-4
               active:scale-[0.98] md:active:scale-100
             "
               >
-                {/* Gradient Hover Overlay */}
-                <div
-                  className="
-                absolute inset-0 rounded-2xl
-                bg-gradient-to-br from-primary/10 via-transparent to-secondary/10
-                opacity-0 group-hover:opacity-100
-                transition-opacity pointer-events-none
-              "
-                />
-
                 <div className="relative flex flex-col sm:flex-row items-start gap-4 md:gap-5">
                   {/* Icon Container */}
                   <div
                     className="
-                  p-3 rounded-xl
-                  bg-gradient-to-br from-primary/20 to-secondary/20
+                  p-3 rounded-lg
+                  bg-primary/10
                   ring-1 ring-primary/20
                   group-hover:ring-primary/40
                   transition-all
@@ -458,20 +439,9 @@ function Home() {
                     </p>
 
                     {/* Features - Denser on mobile */}
-                    <div className="flex flex-wrap gap-1.5 md:gap-2 mb-5">
-                      {app.features.map((feature) => (
-                        <span
-                          key={feature}
-                          className="
-                        text-[10px] md:text-xs px-2.5 py-0.5 rounded-full
-                        bg-muted/60 backdrop-blur
-                        border border-border/50
-                      "
-                        >
-                          {feature}
-                        </span>
-                      ))}
-                    </div>
+                    <p className="mb-5 font-mono text-xs text-muted-foreground">
+                      {app.features.join(" · ")}
+                    </p>
 
                     {/* CTA */}
                     <Link
@@ -498,11 +468,9 @@ function Home() {
 
         {/* Tech Stack */}
         <div className="mt-16 md:mt-24 text-center text-container px-4">
-          <h3 className="text-xl md:text-2xl font-bold mb-6">
-            Powered by Modern Web Technologies
-          </h3>
+          <h3 className="text-xl md:text-2xl font-semibold mb-6">Built with</h3>
 
-          <div className="flex flex-wrap justify-center gap-2 md:gap-3 max-w-4xl mx-auto">
+          <div className="flex flex-wrap justify-center gap-x-6 gap-y-2 max-w-4xl mx-auto font-mono text-xs md:text-sm text-muted-foreground">
             {[
               "React 19",
               "TypeScript",
@@ -515,14 +483,7 @@ function Home() {
             ].map((tech) => (
               <span
                 key={tech}
-                className="
-              px-3 py-1.5 md:px-4 md:py-2 rounded-full
-              bg-background/70 backdrop-blur
-              border border-border/50
-              text-xs md:text-sm font-medium
-              hover:border-primary/40
-              transition-colors
-            "
+                className="transition-colors hover:text-foreground"
               >
                 {tech}
               </span>
