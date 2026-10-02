@@ -43,10 +43,17 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 
   return (
     <Sidebar variant="floating" collapsible="icon" {...props}>
-      <SidebarHeader className="p-4">
-        <Button variant="secondary" onClick={() => setCurrentSession(null)}>
+      <SidebarHeader className="p-4 group-data-[collapsible=icon]:p-2">
+        <Button
+          variant="secondary"
+          aria-label="New chat"
+          className="group-data-[collapsible=icon]:size-8 group-data-[collapsible=icon]:p-0"
+          onClick={() => setCurrentSession(null)}
+        >
           <PlusIcon className="size-4" />
-          <span className="font-semibold">New chat</span>
+          <span className="font-semibold group-data-[collapsible=icon]:hidden">
+            New chat
+          </span>
         </Button>
       </SidebarHeader>
 
@@ -86,7 +93,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         </SidebarGroup>
       </SidebarContent>
 
-      <SidebarFooter className="p-4 border-t">
+      <SidebarFooter className="p-4 border-t group-data-[collapsible=icon]:p-2">
         <SidebarMenu>
           <SidebarMenuItem>
             <SidebarMenuButton
