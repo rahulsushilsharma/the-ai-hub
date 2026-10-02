@@ -235,7 +235,7 @@ function Chat() {
   }, [messages, currentSession]);
 
   return (
-    <SidebarProvider className="flex h-screen overflow-hidden">
+    <SidebarProvider className="flex h-dvh overflow-hidden">
       <AppSidebar className="h-full" />
 
       <main className="flex flex-col flex-1 overflow-hidden">
@@ -244,7 +244,7 @@ function Chat() {
             <SidebarTrigger className="h-7 w-7" />
             <h1 className="text-sm font-medium">AI Chat</h1>
           </div>
-          <div className="text-[10px] text-muted-foreground bg-muted px-1.5 py-0.5 rounded">
+          <div className="font-mono text-xs text-muted-foreground bg-muted px-2 py-0.5 rounded">
             {model.label}
           </div>
         </header>
@@ -256,7 +256,7 @@ function Chat() {
                 <Bot className="h-4 w-4 text-primary" />
               </div>
               <h2 className="text-base font-medium mb-0.5">
-                Welcome to AI Playground
+                Start a conversation
               </h2>
               <p className="text-muted-foreground max-w-md text-xs">
                 Start a conversation below. The AI will show its reasoning
@@ -293,10 +293,10 @@ function Chat() {
                     <div className="flex flex-col max-w-[85%] gap-0.5">
                       {hasThinking && (
                         <div className="flex items-start gap-1.5 -mt-0.5">
-                          <div className="bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-800 rounded-lg p-1.5 text-xs">
+                          <div className="bg-accent/60 border rounded-lg p-2 text-xs text-muted-foreground">
                             <Markdown>{thinkingContent}</Markdown>
                             <div className="text-right mt-0.5">
-                              <span className="text-[8px] text-blue-600 dark:text-blue-400">
+                              <span className="text-[10px] text-muted-foreground">
                                 Reasoning
                               </span>
                             </div>
@@ -335,12 +335,12 @@ function Chat() {
                   </div>
                   <div className="flex flex-col max-w-[85%] gap-1">
                     {streamThinking && (
-                      <div className="bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-800 rounded-lg p-2 text-xs animate-pulse">
+                      <div className="bg-accent/60 border rounded-lg p-2 text-xs text-muted-foreground animate-pulse motion-reduce:animate-none">
                         <Markdown>{streamThinking}</Markdown>
                       </div>
                     )}
                     {streamAnswer && (
-                      <div className="bg-muted rounded-xl p-2.5 animate-pulse">
+                      <div className="bg-muted rounded-xl p-2.5 animate-pulse motion-reduce:animate-none">
                         <MarkdownView docs={streamAnswer} />
                       </div>
                     )}
@@ -364,7 +364,7 @@ function Chat() {
 
             <UserInput onSend={handleSend} />
 
-            <div className="flex justify-between items-center text-[9px] text-muted-foreground px-0.5">
+            <div className="flex justify-between items-center text-xs text-muted-foreground px-0.5">
               <div>{model.label}</div>
               <div>⏎ send • ⇧+⏎ line</div>
             </div>
@@ -398,7 +398,8 @@ function UserInput(props: UserInputProps) {
   return (
     <div className="relative w-full focus-within:ring-2 focus-within:ring-ring/50 rounded-xl border">
       <Textarea
-        placeholder="Message AI... (type your question here)"
+        aria-label="Message"
+        placeholder="Ask anything"
         value={input}
         onChange={(e) => setInput(e.target.value)}
         onKeyDown={handleKeyDown}
@@ -406,10 +407,11 @@ function UserInput(props: UserInputProps) {
         autoFocus
       />
       <Button
+        aria-label="Send message"
         onClick={handleSend}
         disabled={!input.trim()}
         size="icon"
-        className="absolute right-3 bottom-3 h-9 w-9 rounded-full"
+        className="absolute right-3 bottom-3 h-9 w-9 rounded-lg"
       >
         <Send className="h-4 w-4" />
       </Button>

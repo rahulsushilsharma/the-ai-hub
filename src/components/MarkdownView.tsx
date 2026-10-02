@@ -14,14 +14,14 @@ export function MarkdownView({ docs }: MarkdownViewProps) {
         {...props}
         target="_blank"
         rel="noopener noreferrer"
-        className="text-blue-600 dark:text-blue-400 hover:underline font-medium break-words"
+        className="text-primary underline-offset-4 hover:underline font-medium break-words"
       />
     ),
 
     blockquote: (props) => (
       <blockquote
         {...props}
-        className="border-l-4 border-blue-400 bg-blue-50/40 dark:bg-blue-950/40 rounded-md px-4 py-2 my-4 text-gray-700 dark:text-gray-300 italic break-words"
+        className="border-l-4 border-secondary bg-muted/50 rounded-md px-4 py-2 my-4 text-muted-foreground italic break-words"
       />
     ),
 

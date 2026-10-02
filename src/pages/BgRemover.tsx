@@ -1,6 +1,7 @@
 "use client";
 
 import Footer from "@/components/Footer";
+import PageHeader, { PageGlow } from "@/components/PageHeader";
 import ModelLoading from "@/components/ModelLoading";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -18,9 +19,9 @@ import { useEffect, useRef, useState } from "react";
 import BgRemoverWorker from "../workers/bgRemover.ts?worker";
 
 const statusConfig = {
-  ready: { label: "Ready to load", color: "text-green-400", dot: "bg-green-400" },
-  loading: { label: "Loading model...", color: "text-yellow-400", dot: "bg-yellow-400 animate-pulse" },
-  done: { label: "Model loaded", color: "text-emerald-400", dot: "bg-emerald-400" },
+  ready: { label: "Ready to load", color: "text-muted-foreground", dot: "bg-muted-foreground" },
+  loading: { label: "Loading model...", color: "text-secondary-foreground", dot: "bg-secondary animate-pulse" },
+  done: { label: "Model loaded", color: "text-primary", dot: "bg-primary" },
 };
 
 export default function BgRemover() {
@@ -110,42 +111,15 @@ export default function BgRemover() {
 
   return (
     <div className="pt-16 md:pt-24 min-h-screen relative overflow-x-hidden">
-      {/* Ambient glow */}
-      <div className="absolute inset-0 -z-10 pointer-events-none">
-        <div className="absolute top-1/4 left-1/2 w-[300px] h-[300px] md:w-[600px] md:h-[600px] -translate-x-1/2 -translate-y-1/2 bg-gradient-to-br from-primary/20 via-purple-500/20 to-pink-500/20 blur-[80px] md:blur-3xl rounded-full" />
-      </div>
+      <PageGlow />
 
       <ModelLoading progress={progress} open={openProgress} onOpenChange={setOpenProgress} />
 
       <div className="container max-w-2xl mx-auto px-4 pb-16">
-        {/* Page header */}
-        <div className="text-center mb-10">
-          <div className="inline-flex p-3 rounded-xl bg-gradient-to-br from-primary/20 to-purple-500/20 ring-1 ring-primary/20 mb-4">
-            <ImageIcon className="w-6 h-6 text-primary" />
-          </div>
-          <h1 className="text-3xl md:text-4xl font-extrabold tracking-tight mb-3">
-            <span className="bg-gradient-to-br from-primary via-purple-500 to-pink-500 bg-clip-text text-transparent">
-              Background Remover
-            </span>
-          </h1>
-          <p className="text-muted-foreground text-sm md:text-base max-w-md mx-auto">
-            Remove backgrounds from images locally in your browser — zero uploads, full privacy.
-          </p>
-          <div className="flex flex-wrap justify-center gap-1.5 mt-4">
-            {["Local AI", "ONNX Runtime", "Privacy-first", "WebGPU"].map((f) => (
-              <span
-                key={f}
-                className="text-[10px] md:text-xs px-2.5 py-0.5 rounded-full bg-muted/60 backdrop-blur border border-border/50"
-              >
-                {f}
-              </span>
-            ))}
-          </div>
-        </div>
+        <PageHeader icon={ImageIcon} title="Background remover" blurb="Remove backgrounds from images locally in your browser. Zero uploads, full privacy." tags={["Local AI", "ONNX Runtime", "Privacy-first", "WebGPU"]} />
 
         {/* Main card */}
-        <div className="group relative rounded-2xl border bg-background/60 backdrop-blur-xl p-5 md:p-6 transition-all duration-300 hover:shadow-2xl hover:border-primary/40">
-          <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-primary/10 via-transparent to-purple-500/10 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
+        <div className="group relative rounded-xl border bg-card p-5 md:p-6 transition-all duration-300 hover:border-primary/40">
 
           <div className="relative space-y-6">
             {/* Status */}
@@ -164,14 +138,14 @@ export default function BgRemover() {
                 {loading === "loading" ? (
                   <><Loader2 className="animate-spin w-4 h-4" /> Loading...</>
                 ) : (
-                  <><Rocket className="w-4 h-4" /> {loading === "ready" ? "Load Model" : "Reload Model"}</>
+                  <><Rocket className="w-4 h-4" /> {loading === "ready" ? "Load model" : "Reload model"}</>
                 )}
               </Button>
             </div>
 
             {/* Upload */}
             <div className="space-y-2">
-              <Label htmlFor="picture" className="text-sm font-medium">Upload Image</Label>
+              <Label htmlFor="picture" className="text-sm font-medium">Upload image</Label>
               <Input
                 id="picture"
                 type="file"
@@ -184,7 +158,7 @@ export default function BgRemover() {
             {/* Processing state */}
             {processing && (
               <div className="flex flex-col items-center justify-center gap-2 py-4">
-                <Loader2 className="w-8 h-8 animate-spin text-primary" />
+                <Loader2 className="w-8 h-8 animate-spin text-primary motion-reduce:animate-none" />
                 <p className="text-sm text-muted-foreground">Processing image...</p>
               </div>
             )}
@@ -198,19 +172,19 @@ export default function BgRemover() {
                   </span>
                   <img
                     src={inputImage}
-                    alt="Input"
-                    className="rounded-xl max-h-56 object-contain border border-border/50 w-full"
+                    alt="Original upload"
+                    className="rounded-lg max-h-56 object-contain border border-border/50 w-full"
                   />
                 </div>
                 {resultImage && (
                   <div className="flex flex-col items-center gap-2">
-                    <span className="text-xs font-medium text-emerald-400 flex items-center gap-1">
+                    <span className="text-xs font-medium text-primary flex items-center gap-1">
                       <CheckCircle className="w-3.5 h-3.5" /> Result
                     </span>
                     <img
                       src={resultImage}
                       alt="Background Removed"
-                      className="rounded-xl max-h-56 object-contain border border-border/50 w-full"
+                      className="rounded-lg max-h-56 object-contain border border-border/50 w-full"
                     />
                   </div>
                 )}
@@ -221,7 +195,7 @@ export default function BgRemover() {
             {resultImage && (
               <div className="flex justify-center pt-2">
                 <Button onClick={handleDownload} variant="secondary" className="flex items-center gap-2">
-                  <Download className="w-4 h-4" /> Download Image
+                  <Download className="w-4 h-4" /> Download image
                 </Button>
               </div>
             )}
