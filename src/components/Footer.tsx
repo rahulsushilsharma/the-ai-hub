@@ -1,5 +1,6 @@
 import { animate, createScope, Scope } from "animejs";
 import { Heart } from "lucide-react";
+import { Link } from "react-router";
 import { useEffect, useRef } from "react";
 
 function Footer() {
@@ -48,8 +49,11 @@ function Footer() {
               Rahul Sharma
             </a>
           </div>
-          <div className="footer-text text-xs text-muted-foreground">
-            © {new Date().getFullYear()} The AI Hub. All rights reserved.
+          <div className="footer-text flex items-center gap-3 text-xs text-muted-foreground">
+            <span>© {new Date().getFullYear()} The AI Hub</span>
+            <Link to="/privacy" className="hover:text-foreground">
+              Privacy policy
+            </Link>
           </div>
         </div>
       </div>

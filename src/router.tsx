@@ -7,6 +7,7 @@ const Chat = lazy(() => import("./pages/Chat"));
 const TtsDemo = lazy(() => import("./pages/TtsDemo"));
 const HuggingfaceChat = lazy(() => import("./pages/HuggingfaceChat"));
 const BgRemover = lazy(() => import("./pages/BgRemover"));
+const Privacy = lazy(() => import("./pages/Privacy"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
 const routes = [
@@ -33,6 +34,10 @@ const routes = [
       {
         path: "bg-remover",
         element: <BgRemover />,
+      },
+      {
+        path: "privacy",
+        element: <Privacy />,
       },
       {
         path: "*",
