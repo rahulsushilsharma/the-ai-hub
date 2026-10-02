@@ -15,10 +15,54 @@ import {
   Mic,
   Settings,
 } from "lucide-react";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router";
 
+type Probe = { gpu: string; online: boolean };
+
+// Live check of what this browser can run. Runs in an effect so SSG output stays static.
+function useProbe(): Probe | null {
+  const [probe, setProbe] = useState<Probe | null>(null);
+  useEffect(() => {
+    const gpuApi = (
+      navigator as unknown as {
+        gpu?: {
+          requestAdapter: () => Promise<{
+            info?: { vendor?: string; architecture?: string };
+          } | null>;
+        };
+      }
+    ).gpu;
+    const set = (gpu: string) => setProbe({ gpu, online: navigator.onLine });
+    if (!gpuApi) set("Not available in this browser");
+    else
+      gpuApi
+        .requestAdapter()
+        .then((a) =>
+          set(
+            a
+              ? [a.info?.vendor, a.info?.architecture]
+                  .filter(Boolean)
+                  .join(" ") || "Available"
+              : "No adapter found",
+          ),
+        )
+        .catch(() => set("Blocked"));
+    const sync = () => setProbe((p) => p && { ...p, online: navigator.onLine });
+    window.addEventListener("online", sync);
+    window.addEventListener("offline", sync);
+    return () => {
+      window.removeEventListener("online", sync);
+      window.removeEventListener("offline", sync);
+    };
+  }, []);
+  return probe;
+}
+
 function Home() {
+  const probe = useProbe();
+  const ready = !!probe && !/^(Not|No|Blocked)/.test(probe.gpu);
+
   const heartGrid = [
     [
       { heart: 0, circle: 1 },
@@ -114,7 +158,7 @@ function Home() {
               { to: 0.7, ease: spring({ bounce: 0.5 }) },
             ],
           },
-          0
+          0,
         )
         .add(
           ".circle-6",
@@ -129,7 +173,7 @@ function Home() {
             ],
             rotate: { to: 360, ease: "inOut(3)" },
           },
-          100
+          100,
         )
         .add(
           ".circle-5",
@@ -144,7 +188,7 @@ function Home() {
             ],
             rotate: { to: 360, ease: "inOut(3)" },
           },
-          200
+          200,
         )
         .add(
           ".circle-4",
@@ -159,7 +203,7 @@ function Home() {
             ],
             rotate: { to: 360, ease: "inOut(3)" },
           },
-          300
+          300,
         )
         .add(
           ".circle-3",
@@ -174,7 +218,7 @@ function Home() {
             ],
             rotate: { to: 360, ease: "inOut(3)" },
           },
-          400
+          400,
         )
         .add(
           ".circle-2",
@@ -189,7 +233,7 @@ function Home() {
             ],
             rotate: { to: 360, ease: "inOut(3)" },
           },
-          500
+          500,
         )
         .add(
           ".circle-1",
@@ -204,7 +248,7 @@ function Home() {
             ],
             rotate: { to: 360, ease: "inOut(3)" },
           },
-          600
+          600,
         );
     });
 
@@ -284,7 +328,7 @@ function Home() {
         absolute top-1/4 left-1/2
         w-[300px] h-[300px] md:w-[600px] md:h-[600px]
         -translate-x-1/2 -translate-y-1/2
-        bg-gradient-to-br from-primary/20 via-purple-500/20 to-pink-500/20
+        bg-gradient-to-br from-primary/20 via-primary/20 to-secondary/20
         blur-[80px] md:blur-3xl rounded-full
       "
         />
@@ -293,7 +337,7 @@ function Home() {
       {/* Hero Section */}
       <div className="text-container px-6 mb-12 md:mb-20">
         <h1 className="text-4xl md:text-6xl font-extrabold text-center mb-4 tracking-tight">
-          <span className="bg-gradient-to-br from-primary via-purple-500 to-pink-500 bg-clip-text text-transparent">
+          <span className="bg-gradient-to-br from-primary via-primary to-secondary bg-clip-text text-transparent">
             The AI Hub
           </span>
         </h1>
@@ -302,6 +346,26 @@ function Home() {
           by modern web technologies.
         </p>
       </div>
+
+      {/* Live browser capability readout */}
+      <dl className="text-container mx-auto mb-10 max-w-md rounded-md border bg-card p-4 font-mono text-sm">
+        <div className="flex justify-between gap-4 border-b pb-2">
+          <dt className="text-muted-foreground">Your GPU</dt>
+          <dd className="text-right">{probe ? probe.gpu : "Checking…"}</dd>
+        </div>
+        <div className="flex justify-between gap-4 border-b py-2">
+          <dt className="text-muted-foreground">Network</dt>
+          <dd>
+            {probe ? (probe.online ? "Connected" : "Offline") : "Checking…"}
+          </dd>
+        </div>
+        <div className="flex justify-between gap-4 pt-2">
+          <dt className="text-muted-foreground">Ready to run models</dt>
+          <dd className={ready ? "font-medium text-primary" : "font-medium"}>
+            {probe ? (ready ? "Yes" : "Limited") : "…"}
+          </dd>
+        </div>
+      </dl>
 
       {/* Animated Heart/Gear - Scaled for smaller screens */}
       <div className="flex justify-center items-center mt-4 mb-12 md:mt-8 md:mb-16">
@@ -317,12 +381,12 @@ function Home() {
                     <div
                       className={`w-3 h-3 rounded-2xl heart circle-${cell.circle} opacity-[0.01]`}
                     >
-                      <Settings className="w-3 h-3 gear stroke-purple-500 mix-blend-plus-darker" />
+                      <Settings className="w-3 h-3 gear stroke-primary mix-blend-plus-darker" />
                     </div>
                   </div>
                 ) : (
                   <div key={cellIndex} className="square w-8 h-8"></div>
-                )
+                ),
               )}
             </div>
           ))}
@@ -364,7 +428,7 @@ function Home() {
                 <div
                   className="
                 absolute inset-0 rounded-2xl
-                bg-gradient-to-br from-primary/10 via-transparent to-purple-500/10
+                bg-gradient-to-br from-primary/10 via-transparent to-secondary/10
                 opacity-0 group-hover:opacity-100
                 transition-opacity pointer-events-none
               "
@@ -375,7 +439,7 @@ function Home() {
                   <div
                     className="
                   p-3 rounded-xl
-                  bg-gradient-to-br from-primary/20 to-purple-500/20
+                  bg-gradient-to-br from-primary/20 to-secondary/20
                   ring-1 ring-primary/20
                   group-hover:ring-primary/40
                   transition-all
