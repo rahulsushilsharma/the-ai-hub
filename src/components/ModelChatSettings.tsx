@@ -35,10 +35,10 @@ function ModelChatSettings() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle className="text-lg font-medium text-center">
-              Chat Settings
+              Chat settings
             </DialogTitle>
             <DialogDescription>
-              Settings for the chat model will go here.
+              Pick a model and how creative its replies should be.
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-4">
@@ -67,11 +67,15 @@ function ModelChatSettings() {
               </Select>
             </div>
             <div className="">
-              <h3 className="text-sm font-medium leading-none mb-1.5">
+              <h3 className="mb-1.5 flex justify-between text-sm font-medium leading-none">
                 Temperature
+                <span className="font-mono text-muted-foreground tabular-nums">
+                  {settings.temperature.toFixed(1)}
+                </span>
               </h3>
 
               <Slider
+                aria-label="Temperature"
                 defaultValue={[settings.temperature]}
                 max={1}
                 step={0.1}

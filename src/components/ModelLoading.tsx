@@ -24,7 +24,6 @@ function ModelLoading({ progress, open, onOpenChange }: ModelLoadingProps) {
     if (!progress) return;
 
     if (progress.status === "ready") {
-      console.log("Model is ready:", progress.model);
       return;
     }
 
@@ -87,7 +86,7 @@ function ModelLoading({ progress, open, onOpenChange }: ModelLoadingProps) {
                 <Progress value={progressValue} className="h-2" />
 
                 {isProgress && (
-                  <div className="flex justify-between text-[10px] text-muted-foreground">
+                  <div className="flex justify-between text-xs text-muted-foreground tabular-nums">
                     <span>
                       {(fileInfo.loaded / 1024 / 1024).toFixed(2)} MB /{" "}
                       {(fileInfo.total / 1024 / 1024).toFixed(2)} MB

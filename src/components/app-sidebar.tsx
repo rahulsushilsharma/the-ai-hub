@@ -20,7 +20,6 @@ import {
   SidebarMenuItem,
   SidebarRail,
 } from "@/components/ui/sidebar";
-import { cn } from "@/lib/utils";
 import { useAppStore } from "@/services/uiStore";
 import { Button } from "./ui/button";
 
@@ -47,14 +46,19 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       <SidebarHeader className="p-4">
         <Button variant="secondary" onClick={() => setCurrentSession(null)}>
           <PlusIcon className="size-4" />
-          <span className="font-semibold">New Chat</span>
+          <span className="font-semibold">New chat</span>
         </Button>
       </SidebarHeader>
 
       <SidebarContent>
         <SidebarGroup>
-          <SidebarGroupLabel>Recent Conversations</SidebarGroupLabel>
+          <SidebarGroupLabel>Recent conversations</SidebarGroupLabel>
           <SidebarGroupContent>
+            {sessions.length === 0 && (
+              <p className="px-2 py-4 text-sm text-muted-foreground group-data-[collapsible=icon]:hidden">
+                No chats yet. Send a message to start one.
+              </p>
+            )}
             <SidebarMenu>
               {sessions.map((item) => (
                 <SidebarMenuItem key={item.id}>
@@ -62,24 +66,18 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                     onClick={() => setCurrentSession(item)}
                     isActive={currentSession?.id === item.id}
                     tooltip={item.name}
-                    className={cn(
-                      "py-5 transition-colors",
-                      currentSession?.id === item.id
-                        ? "bg-accent"
-                        : "hover:bg-accent/50"
-                    )}
+                    className="py-5 transition-colors"
                   >
                     <MessageSquareTextIcon className="size-4 opacity-70" />
                     <span className="truncate font-medium">{item.name}</span>
                   </SidebarMenuButton>
 
-                  {/* Modern 'Action' button for deletion */}
-                  <SidebarMenuAction
+                                    <SidebarMenuAction
                     onClick={(e) => handleRemoveSession(e, item.id)}
                     className="hover:text-destructive transition-colors"
                   >
                     <Trash2Icon className="size-3.5" />
-                    <span className="sr-only">Delete Chat</span>
+                    <span className="sr-only">Delete chat</span>
                   </SidebarMenuAction>
                 </SidebarMenuItem>
               ))}
@@ -88,7 +86,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         </SidebarGroup>
       </SidebarContent>
 
-      <SidebarFooter className="p-4 border-t border-border/50">
+      <SidebarFooter className="p-4 border-t">
         <SidebarMenu>
           <SidebarMenuItem>
             <SidebarMenuButton
