@@ -1,6 +1,7 @@
 import { CHAT_MODELS } from "@/consts/consts";
 import type { Model } from "@/types/types";
 import {
+  InterruptableStoppingCriteria,
   pipeline,
   TextGenerationPipeline,
   TextStreamer,
@@ -60,7 +61,14 @@ class LLMCompletionPipeline {
     return Object.values(this.models);
   }
 }
+const stopper = new InterruptableStoppingCriteria();
+
 self.addEventListener("message", async (event) => {
+  if (event.data.type === "chat:stop") {
+    stopper.interrupt();
+    return;
+  }
+
   let llm = await LLMCompletionPipeline.getInstance((x) => {
     self.postMessage(x);
     console.log(x);
@@ -80,9 +88,12 @@ self.addEventListener("message", async (event) => {
 
   switch (event.data.type) {
     case "chat:message": {
+      stopper.reset();
       const output1 = await llm(event.data.messages, {
         max_new_tokens: 1024,
         do_sample: false,
+        // runtime supports it; missing from the pipeline option types
+        ...{ stopping_criteria: stopper },
         streamer: new TextStreamer(llm.tokenizer, {
           skip_prompt: true,
           skip_special_tokens: true,
