@@ -11,6 +11,7 @@ self.addEventListener("message", async (event) => {
       self.postMessage({
         type: "model:loaded",
         message: "pipelines ready",
+        speakers: tts.getSpeakers().map((s) => ({ id: s.id, name: s.name })),
       });
     } catch (error) {
       self.postMessage({
@@ -33,7 +34,7 @@ self.addEventListener("message", async (event) => {
     streamer.push(event.data.message);
     streamer.close(); // Indicate we won't add more text
 
-    const stream = tts.stream(streamer);
+    const stream = tts.stream(streamer, event.data.options);
 
     try {
       for await (const { text, audio } of stream) {

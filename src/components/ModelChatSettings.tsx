@@ -7,7 +7,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { CHAT_MODELS } from "@/consts/consts";
-import { useAppStore, useChatSettings } from "@/services/uiStore";
+import { DEFAULT_CHAT_SETTINGS, useAppStore, useChatSettings } from "@/services/uiStore";
 import { Button } from "./ui/button";
 import {
   Select,
@@ -16,7 +16,16 @@ import {
   SelectTrigger,
   SelectValue,
 } from "./ui/select";
-import { Slider } from "./ui/slider";
+import SettingsPanel, { type Field } from "./SettingsPanel";
+
+const FIELDS: Field[] = [
+  { key: "system_prompt", type: "text", label: "System prompt", placeholder: "e.g. You are a concise assistant." },
+  { key: "do_sample", type: "toggle", label: "Sampling", hint: "Off = always pick the most likely token (deterministic)." },
+  { key: "temperature", type: "slider", label: "Temperature", min: 0, max: 2, step: 0.1, hint: "Higher = more creative. Needs sampling on." },
+  { key: "top_p", type: "slider", label: "Top-p", min: 0.1, max: 1, step: 0.05 },
+  { key: "repetition_penalty", type: "slider", label: "Repetition penalty", min: 1, max: 2, step: 0.05 },
+  { key: "max_new_tokens", type: "slider", label: "Max new tokens", min: 64, max: 2048, step: 64 },
+];
 
 function ModelChatSettings() {
   const appState = useAppStore((state) => state.appState);
@@ -32,7 +41,7 @@ function ModelChatSettings() {
         open={appState.settingsOpen}
         onOpenChange={(value) => setAppState({ settingsOpen: value })}
       >
-        <DialogContent>
+        <DialogContent className="max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="text-lg font-medium text-center">
               Chat settings
@@ -66,24 +75,13 @@ function ModelChatSettings() {
                 </SelectContent>
               </Select>
             </div>
-            <div className="">
-              <h3 className="mb-1.5 flex justify-between text-sm font-medium leading-none">
-                Temperature
-                <span className="font-mono text-muted-foreground tabular-nums">
-                  {settings.temperature.toFixed(1)}
-                </span>
-              </h3>
-
-              <Slider
-                aria-label="Temperature"
-                defaultValue={[settings.temperature]}
-                max={1}
-                step={0.1}
-                onValueChange={(value) =>
-                  setChatSettings({ ...settings, temperature: value[0] })
-                }
-              />
-            </div>
+            <SettingsPanel
+              title="Generation"
+              fields={FIELDS}
+              values={settings}
+              onChange={(p) => setChatSettings({ ...settings, ...p })}
+              onReset={() => setChatSettings(DEFAULT_CHAT_SETTINGS)}
+            />
           </div>
           <DialogFooter>
             <Button

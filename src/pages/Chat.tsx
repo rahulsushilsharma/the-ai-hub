@@ -200,6 +200,7 @@ function Chat() {
       type: "chat:message",
       // model has no use for its own earlier reasoning
       messages: history.map((m) => ({ ...m, content: stripThink(m.content) })),
+      settings: useChatSettings.getState().settings,
     });
   }
 

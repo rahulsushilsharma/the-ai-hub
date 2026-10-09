@@ -29,6 +29,9 @@ interface ChatSettings {
   frequency_penalty: number;
   max_new_tokens: number;
   stream: boolean;
+  do_sample: boolean;
+  repetition_penalty: number;
+  system_prompt: string;
 }
 
 export type { ChatSettings, Message, Model, Session };

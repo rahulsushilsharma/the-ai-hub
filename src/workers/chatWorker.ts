@@ -1,5 +1,5 @@
 import { CHAT_MODELS } from "@/consts/consts";
-import type { Model } from "@/types/types";
+import type { ChatSettings, Model } from "@/types/types";
 import {
   InterruptableStoppingCriteria,
   pipeline,
@@ -89,9 +89,18 @@ self.addEventListener("message", async (event) => {
   switch (event.data.type) {
     case "chat:message": {
       stopper.reset();
-      const output1 = await llm(event.data.messages, {
-        max_new_tokens: 1024,
-        do_sample: false,
+      const st: ChatSettings | undefined = event.data.settings;
+      const messages = st?.system_prompt?.trim()
+        ? [{ role: "system", content: st.system_prompt.trim() }, ...event.data.messages]
+        : event.data.messages;
+      const output1 = await llm(messages, {
+        max_new_tokens: st?.max_new_tokens ?? 1024,
+        do_sample: st?.do_sample ?? false,
+        ...(st?.do_sample && {
+          temperature: st.temperature,
+          top_p: st.top_p,
+        }),
+        repetition_penalty: st?.repetition_penalty ?? 1,
         // runtime supports it; missing from the pipeline option types
         ...{ stopping_criteria: stopper },
         streamer: new TextStreamer(llm.tokenizer, {

@@ -1,6 +1,7 @@
 import { CHAT_MODELS } from "@/consts/consts";
 import type { ChatSettings, Message, Model, Session } from "@/types/types";
 import { create } from "zustand";
+import { persist } from "zustand/middleware";
 
 type StoreState = {
   currentSession: Session | null;
@@ -54,22 +55,35 @@ const useAppStore = create<StoreState>()((set) => ({
     }),
 }));
 
-const useChatSettings = create<ChatSettingsState>()((set) => ({
-  settings: {
-    temperature: 0.7,
-    top_p: 1,
-    presence_penalty: 0,
-    frequency_penalty: 0,
-    max_new_tokens: 512,
-    stream: true,
-    model: "",
-    modelType: "api",
-  },
-  setChatSettings: (settings) => set({ settings }),
-  model: {
-    ...CHAT_MODELS[0],
-    loaded: false,
-  },
-  setModel: (model) => set({ model }),
-}));
-export { useAppStore, useChatSettings };
+const DEFAULT_CHAT_SETTINGS: ChatSettings = {
+  temperature: 0.7,
+  top_p: 0.95,
+  presence_penalty: 0,
+  frequency_penalty: 0,
+  repetition_penalty: 1.1,
+  max_new_tokens: 512,
+  do_sample: true,
+  stream: true,
+  system_prompt: "",
+};
+
+const useChatSettings = create<ChatSettingsState>()(
+  persist(
+    (set) => ({
+      settings: DEFAULT_CHAT_SETTINGS,
+      setChatSettings: (settings) => set({ settings }),
+      model: { ...CHAT_MODELS[0], loaded: false },
+      setModel: (model) => set({ model }),
+    }),
+    {
+      name: "chat-settings",
+      partialize: (s) => ({ settings: s.settings }),
+      // new fields added later must not vanish for returning users
+      merge: (saved, cur) => ({
+        ...cur,
+        settings: { ...DEFAULT_CHAT_SETTINGS, ...(saved as Partial<ChatSettingsState>)?.settings },
+      }),
+    }
+  )
+);
+export { DEFAULT_CHAT_SETTINGS, useAppStore, useChatSettings };

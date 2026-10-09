@@ -2,6 +2,8 @@
 
 import Footer from "@/components/Footer";
 import PageHeader, { PageGlow } from "@/components/PageHeader";
+import SettingsPanel, { type Field } from "@/components/SettingsPanel";
+import { useStoredSettings } from "@/hooks/use-stored-settings";
 import ModelLoading from "@/components/ModelLoading";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -24,7 +26,50 @@ const statusConfig = {
   done: { label: "Model loaded", color: "text-primary", dot: "bg-primary" },
 };
 
+const DEFAULTS = { background: "transparent", color: "#ffffff", blur: 12, format: "png", maskOnly: false };
+
+// Composite the cut-out (RGBA) over the chosen background and encode it.
+async function compose(cutout: string, o: typeof DEFAULTS, original: string): Promise<string> {
+  const load = (src: string) =>
+    new Promise<HTMLImageElement>((res, rej) => {
+      const i = new Image();
+      i.onload = () => res(i);
+      i.onerror = rej;
+      i.src = src;
+    });
+  const fg = await load(cutout);
+  const c = document.createElement("canvas");
+  c.width = fg.width;
+  c.height = fg.height;
+  const ctx = c.getContext("2d")!;
+  if (o.maskOnly) {
+    // white where kept, black elsewhere: paint white silhouette via source-in, then black underneath
+    ctx.drawImage(fg, 0, 0);
+    ctx.globalCompositeOperation = "source-in";
+    ctx.fillStyle = "#fff";
+    ctx.fillRect(0, 0, c.width, c.height);
+    ctx.globalCompositeOperation = "destination-over";
+    ctx.fillStyle = "#000";
+    ctx.fillRect(0, 0, c.width, c.height);
+  } else {
+    if (o.background === "color") {
+      ctx.fillStyle = o.color;
+      ctx.fillRect(0, 0, c.width, c.height);
+    } else if (o.background === "blur") {
+      ctx.filter = `blur(${o.blur}px)`;
+      ctx.drawImage(await load(original), 0, 0, c.width, c.height);
+      ctx.filter = "none";
+    }
+    ctx.drawImage(fg, 0, 0);
+  }
+  // JPEG/WebP-lossy can't hold alpha: transparent output stays PNG
+  const type = o.format === "png" || (o.background === "transparent" && !o.maskOnly) ? "image/png" : `image/${o.format}`;
+  return c.toDataURL(type, 0.92);
+}
+
 export default function BgRemover() {
+  const [cfg, setCfg, resetCfg] = useStoredSettings("bgremover-settings", DEFAULTS);
+  const [cutout, setCutout] = useState("");
   const [inputImage, setInputImage] = useState<string>("");
   const [resultImage, setResultImage] = useState<string>("");
   const [loading, setLoading] = useState<"ready" | "loading" | "done">("ready");
@@ -70,7 +115,7 @@ export default function BgRemover() {
           break;
         case "complete":
           rawImageToDataURL(output).then((dataUrl) => {
-            setResultImage(dataUrl);
+            setCutout(dataUrl);
             setProcessing(false);
           });
           break;
@@ -80,6 +125,11 @@ export default function BgRemover() {
     worker.current.addEventListener("message", onMessage);
     return () => worker.current?.removeEventListener("message", onMessage);
   }, []);
+
+  useEffect(() => {
+    if (!cutout) return setResultImage("");
+    compose(cutout, cfg, inputImage).then(setResultImage, console.error);
+  }, [cutout, cfg, inputImage]);
 
   const loadModel = () => {
     worker.current?.postMessage({ type: "init" });
@@ -91,7 +141,7 @@ export default function BgRemover() {
     if (file) {
       const imageUrl = URL.createObjectURL(file);
       setInputImage(imageUrl);
-      setResultImage("");
+      setCutout("");
       setProcessing(true);
       worker.current?.postMessage({ type: "image", image: imageUrl });
     } else {
@@ -103,11 +153,25 @@ export default function BgRemover() {
     if (!resultImage) return;
     const link = document.createElement("a");
     link.href = resultImage;
-    link.download = "background-removed.png";
+    link.download = `background-removed.${resultImage.slice(11, resultImage.indexOf(";"))}`;
     link.click();
   };
 
   const status = statusConfig[loading];
+  const fields: Field[] = [
+    { key: "background", type: "select", label: "Background", options: [
+      { value: "transparent", label: "Transparent" },
+      { value: "color", label: "Solid colour" },
+      { value: "blur", label: "Blurred original" },
+    ] },
+    ...(cfg.background === "blur" ? [{ key: "blur", type: "slider", label: "Blur", min: 2, max: 40, step: 1 } as Field] : []),
+    { key: "format", type: "select", label: "Format", options: [
+      { value: "png", label: "PNG" },
+      { value: "webp", label: "WebP" },
+      { value: "jpeg", label: "JPEG" },
+    ], hint: "Transparent output is always PNG." },
+    { key: "maskOnly", type: "toggle", label: "Mask only (black & white)" },
+  ];
 
   return (
     <div className="pt-16 md:pt-24 min-h-screen relative overflow-x-hidden">
@@ -200,6 +264,16 @@ export default function BgRemover() {
               </div>
             )}
           </div>
+        </div>
+
+        <div className="mt-6">
+          <SettingsPanel title="Output" fields={fields} values={cfg} onChange={setCfg} onReset={resetCfg} />
+          {cfg.background === "color" && !cfg.maskOnly && (
+            <label className="mt-3 flex items-center justify-between rounded-xl border bg-card px-5 py-3 text-sm font-medium">
+              Background colour
+              <input type="color" value={cfg.color} onChange={(e) => setCfg({ color: e.target.value })} className="h-8 w-12 cursor-pointer bg-transparent" />
+            </label>
+          )}
         </div>
 
         <p className="text-center text-xs text-muted-foreground mt-6">
