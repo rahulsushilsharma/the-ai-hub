@@ -7,6 +7,7 @@ import {
   Menu,
   MessageCircle,
   Mic,
+  Palette,
   Moon,
   Sun,
   X,
@@ -36,6 +37,11 @@ const navItems = [
     label: "Background Remover",
     path: "/bg-remover",
     icon: <ImageIcon className="w-3 h-3" />,
+  },
+  {
+    label: "Text to Image",
+    path: "/agate",
+    icon: <Palette className="w-3 h-3" />,
   },
 ];
 

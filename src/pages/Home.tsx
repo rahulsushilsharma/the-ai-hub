@@ -13,6 +13,7 @@ import {
   Image,
   MessageCircle,
   Mic,
+  Palette,
   Settings,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
@@ -316,6 +317,14 @@ function Home() {
         "Download Results",
         "High Quality",
       ],
+    },
+    {
+      title: "Text to Image",
+      description:
+        "Agate by LogoLabs: a 0.19B text-to-image model running entirely on your GPU. No server, prompts stay private.",
+      icon: Palette,
+      route: "/agate",
+      features: ["WebGPU", "512px output", "Local AI", "AI-content marking"],
     },
   ];
 

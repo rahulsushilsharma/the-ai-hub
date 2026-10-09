@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@hono/vite-ssg": "^0.3.0",
+    "@huggingface/tokenizers": "0.2.0",
     "@huggingface/transformers": "^3.7.3",
     "@radix-ui/react-collapsible": "^1.1.12",
     "@radix-ui/react-dialog": "^1.1.15",
@@ -32,7 +33,7 @@
     "firebase": "^12.4.0",
     "highlight.js": "^11.11.1",
     "lucide-react": "^0.544.0",
-    "onnxruntime-web": "^1.23.0",
+    "onnxruntime-web": "1.30.0",
     "react": "^19.1.1",
     "react-dom": "^19.1.1",
     "react-markdown": "^10.1.0",

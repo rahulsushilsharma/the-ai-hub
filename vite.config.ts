@@ -214,6 +214,8 @@ export default defineConfig({
       "@": path.resolve(__dirname, "./src"),
     },
   },
+  // dev: pre-bundling moves the ort loader away from its .wasm files, so the wasm URL returns index.html
+  optimizeDeps: { exclude: ["onnxruntime-web"] },
   worker: {
     format: "es", // ✅ modern module format (required)
     rollupOptions: {
