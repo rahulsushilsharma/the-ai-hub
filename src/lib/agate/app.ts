@@ -67,15 +67,26 @@ function renderExamples() {
 }
 
 function seg(el, items, current, onPick) {
+  const hadFocus = el.contains(document.activeElement);
   el.innerHTML = "";
   for (const it of items) {
     const b = document.createElement("button");
     b.type = "button"; b.setAttribute("role", "radio"); b.setAttribute("aria-checked", String(it.value === current));
     b.dataset.value = it.value;
     b.innerHTML = `${it.label}${it.sub ? `<small>${it.sub}</small>` : ""}`;
+    b.tabIndex = it.value === current ? 0 : -1;
     b.onclick = () => { if (!busy && it.value !== current) onPick(it.value); };
     el.appendChild(b);
   }
+  if (hadFocus) el.querySelector("[tabindex='0']")?.focus();
+  el.onkeydown = (e) => {
+    const d = { ArrowRight: 1, ArrowDown: 1, ArrowLeft: -1, ArrowUp: -1 }[e.key];
+    if (!d) return;
+    const bs = [...el.querySelectorAll("button")], i = bs.indexOf(document.activeElement);
+    if (i < 0) return;
+    e.preventDefault(); bs[(i + d + bs.length) % bs.length].focus();
+    if (!busy) bs[(i + d + bs.length) % bs.length].click();
+  };
 }
 
 function renderVersion() {
@@ -113,7 +124,7 @@ async function pickRes(r) {
     busy = true; ui.go.disabled = true;
     setProgress(1, `Preparing the ${r} px generator`, "");
     try { const ms = await agate.setResolution(r); setProgress(0, "Ready", `${r} px · ${(ms / 1000).toFixed(1)} s`); }
-    catch (e) { console.error(e); setProgress(0, "Switch failed", String(e.message || e)); }
+    catch (e) { console.error(e); setProgress(0, "Switch failed. Try again", String(e.message || e)); }
     busy = false; ui.go.disabled = false;
   }
 }
@@ -126,10 +137,13 @@ ui.crisp.checked = store.get("agate-crisp") === "1";
 const applyCrisp = () => { ui.frame.classList.toggle("crisp", ui.crisp.checked); store.set("agate-crisp", ui.crisp.checked ? "1" : "0"); };
 ui.crisp.onchange = applyCrisp; applyCrisp();
 
+let lastSaid = "";
 const mb = (b) => (b / 1e6).toFixed(0);
 function setProgress(frac, left, right = "") {
-  ui.fill.style.width = `${Math.max(0, Math.min(1, frac)) * 100}%`;
+  ui.fill.style.transform = `scaleX(${Math.max(0, Math.min(1, frac))})`;
   ui.status.textContent = left; ui.statusR.textContent = right;
+  // screen readers: announce state changes only, not every step / download chunk
+  if (!/^(Step|Downloading)/.test(left) && left !== lastSaid) { lastSaid = left; $("announce").textContent = right ? `${left}. ${right}` : left; }
 }
 function showTimings(rows) {
   ui.timings.innerHTML = rows.map(([k, v]) => `<dt>${k}</dt><dd>${v}</dd>`).join("");
@@ -159,7 +173,7 @@ async function load() {
     ui.go.textContent = "Generate"; ui.go.disabled = false;
   } catch (e) {
     console.error(e);
-    setProgress(0, "Load failed", String(e.message || e));
+    setProgress(0, "Load failed. Check your connection and retry", String(e.message || e));
     window.__agate = { state: "error", version, error: String(e.message || e) };
     ui.go.textContent = "Retry load"; ui.go.disabled = false; agate = null;
   }
@@ -231,7 +245,7 @@ async function generate(opts = {}) {
     return r;
   } catch (e) {
     if (String(e.message) === "stopped") setProgress(0, "Stopped", "");
-    else { console.error(e); setProgress(0, "Error", String(e.message || e)); window.__agate.error = String(e.message || e); }
+    else { console.error(e); setProgress(0, "Generation failed. Try again or lower the resolution", String(e.message || e)); window.__agate.error = String(e.message || e); }
     window.__agate.state = "done";
   } finally {
     busy = false; ui.go.textContent = "Generate"; ui.frame.classList.remove("busy");

@@ -7,10 +7,10 @@ export default `<div class="page">
     <div class="seg" role="radiogroup" aria-labelledby="ver-label" id="versions"></div>
     <p class="ver-note" id="ver-note"></p>
     <p class="hint">A 0.19B-parameter flow model with a 68M text encoder, running on your own GPU through WebGPU.
-      First visit downloads the chosen model once (<span id="dl-size">about 530 MB</span>); after that it loads from the browser cache.</p>
+      First visit downloads the chosen model once (<span id="dl-size">about 530&nbsp;MB</span>); after that it loads from the browser cache.</p>
   </section>
 
-  <div id="nogpu" class="notice" hidden>
+  <div id="nogpu" class="notice" role="alert" hidden>
     <strong>WebGPU unavailable</strong>
     <p id="nogpu-why"></p>
     <p>Agate needs WebGPU for usable speed: use a recent Chrome or Edge (113+) on Windows, macOS or ChromeOS,
@@ -22,25 +22,26 @@ export default `<div class="page">
   <main class="grid">
     <section class="card controls">
       <label class="lbl" for="prompt">Prompt</label>
-      <textarea id="prompt" rows="3" spellcheck="false">a green teapot and a red cup on a table</textarea>
+      <textarea id="prompt" name="prompt" rows="3" spellcheck="false" autocomplete="off">a green teapot and a red cup on a table</textarea>
       <div class="examples" id="examples">
         <span class="dim">Try</span>
       </div>
       <label class="lbl" for="negative">Avoid <span class="dim" id="neg-hint">(optional negative prompt)</span></label>
-      <input id="negative" type="text" spellcheck="false" placeholder="e.g. text, blur">
+      <input id="negative" name="negative" type="text" spellcheck="false" autocomplete="off" placeholder="e.g. text, blur…">
 
       <div class="row">
         <div class="field">
           <label class="lbl" for="seed">Seed</label>
           <div class="seed-row">
-            <input id="seed" type="number" min="0" max="4294967295" step="1" value="0">
-            <button id="dice" class="btn icon" type="button" title="Random seed" aria-label="Random seed">⟳</button>
+            <input id="seed" name="seed" inputmode="numeric" autocomplete="off" type="number" min="0" max="4294967295" step="1" value="0">
+            <button id="dice" class="btn icon" type="button" title="Random seed" aria-label="Random seed"><span aria-hidden="true">⟳</span></button>
           </div>
         </div>
         <div class="field">
           <label class="lbl" for="steps">Steps <b id="steps-v">50</b></label>
           <input id="steps" type="range" min="4" max="50" step="1" value="50">
-          <label class="toggle fast" title="25 steps: about twice as fast; detail holds, the layout can change"><input type="checkbox" id="fast"> Fast (25 steps)</label>
+          <label class="toggle fast" title="25 steps: about twice as fast; detail holds, the layout can change" aria-describedby="fast-hint"><input type="checkbox" id="fast"> Fast (25&nbsp;steps)</label>
+          <span id="fast-hint" class="sr-only">About twice as fast; detail holds, the layout can change.</span>
         </div>
         <div class="field">
           <label class="lbl" for="cfg">CFG <b id="cfg-v">3.0</b></label>
@@ -56,7 +57,8 @@ export default `<div class="page">
 
       <button id="go" class="btn primary" type="button" disabled>Load model</button>
 
-      <div class="progress" role="status" aria-live="polite">
+      <div class="progress">
+        <span id="announce" class="sr-only" role="status" aria-live="polite"></span>
         <div class="bar"><div id="bar-fill"></div></div>
         <div class="progress-text"><span id="status">Idle</span><span id="status-r" class="dim"></span></div>
       </div>
@@ -67,20 +69,20 @@ export default `<div class="page">
       <div class="out-head">
         <h2 class="h" id="out-label">Output · 512 × 512</h2>
         <span class="toggles">
-          <label class="toggle" title="Show the thinker's 16 x 16 plan and the expected final image at every step"><input type="checkbox" id="show-thinker" checked> Show thinker</label>
+          <label class="toggle" title="Show the thinker's 16 × 16 plan and the expected final image at every step"><input type="checkbox" id="show-thinker" checked> Show thinker</label>
           <label class="toggle"><input type="checkbox" id="crisp"> Crisp pixels</label>
         </span>
       </div>
       <div class="frame" id="frame">
-        <canvas id="canvas" width="512" height="512"></canvas>
+        <canvas id="canvas" width="512" height="512" role="img" aria-label="Generated image"></canvas>
         <div class="placeholder" id="placeholder">
           <img src="/agate/agate-a.svg" alt="">
         </div>
       </div>
       <div class="thinker" id="thinker" hidden>
-        <figure><canvas id="plan-canvas" width="16" height="16"></canvas>
+        <figure><canvas id="plan-canvas" width="16" height="16" role="img" aria-label="Thinker plan, 16 by 16 grid"></canvas>
           <figcaption class="dim">Thinker plan · 16 × 16</figcaption></figure>
-        <figure><canvas id="pred-canvas" width="32" height="32"></canvas>
+        <figure><canvas id="pred-canvas" width="32" height="32" role="img" aria-label="Expected final image at the current step"></canvas>
           <figcaption class="dim">Expected · <span id="thinker-step">0 / 0</span></figcaption></figure>
         <p class="thinker-note">The thinker lays the picture out on a 16 × 16 grid before the renderer paints it.
           Colours are the plan's three main directions (fixed at the first step, as in the ComfyUI nodes); the
@@ -90,12 +92,12 @@ export default `<div class="page">
         Made by <span id="ai-model">Agate Preview 003</span>; it carries an invisible watermark and, when saved, PNG provenance metadata (no prompt).</span></p>
       <div class="out-foot">
         <dl class="timings" id="timings"></dl>
-        <a id="save" class="btn ghost small" download="agate.png" hidden>Save PNG</a>
+        <a id="save" class="btn ghost small" download="agate.png" aria-label="Save generated image as PNG" hidden>Save PNG</a>
       </div>
     </section>
   </main>
 
-  <div id="parity" class="notice" hidden></div>
+  <div id="parity" class="notice" role="status" hidden></div>
 
   <footer class="foot">
     <p class="strong">Runs entirely in your browser on WebGPU — nothing leaves your machine.</p>
