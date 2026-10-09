@@ -29,6 +29,11 @@ const navItems = [
     icon: <Mic className="w-3 h-3" />,
   },
   {
+    label: "Supertonic TTS",
+    path: "/tts-supertonic",
+    icon: <Mic className="w-3 h-3" />,
+  },
+  {
     label: "hf Chat",
     path: "/huggingface-chat",
     icon: <Bot className="w-3 h-3" />,

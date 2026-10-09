@@ -5,6 +5,7 @@ import App from "./App";
 const Home = lazy(() => import("./pages/Home"));
 const Chat = lazy(() => import("./pages/Chat"));
 const TtsDemo = lazy(() => import("./pages/TtsDemo"));
+const TtsSupertonic = lazy(() => import("./pages/TtsSupertonic"));
 const HuggingfaceChat = lazy(() => import("./pages/HuggingfaceChat"));
 const BgRemover = lazy(() => import("./pages/BgRemover"));
 const Agate = lazy(() => import("./pages/Agate"));
@@ -27,6 +28,10 @@ const routes = [
       {
         path: "/tts-demo",
         element: <TtsDemo />,
+      },
+      {
+        path: "/tts-supertonic",
+        element: <TtsSupertonic />,
       },
       {
         path: "huggingface-chat",

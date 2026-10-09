@@ -15,6 +15,7 @@ import {
   Mic,
   Palette,
   Settings,
+  Zap,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router";
@@ -280,6 +281,14 @@ function Home() {
       ],
     },
     {
+      title: "Text to Image",
+      description:
+        "Agate by LogoLabs: a 0.19B text-to-image model running entirely on your GPU. No server, prompts stay private.",
+      icon: Palette,
+      route: "/agate",
+      features: ["WebGPU", "512px output", "Local AI", "AI-content marking"],
+    },
+    {
       title: "Text-to-Speech",
       description:
         "Browser-based TTS using ONNX Runtime and WebGPU. Convert text to natural-sounding speech instantly.",
@@ -293,17 +302,12 @@ function Home() {
       ],
     },
     {
-      title: "Hugging Face Chat",
+      title: "Supertonic TTS",
       description:
-        "Interface for interacting with Hugging Face models. Access a wide range of pre-trained AI models.",
-      icon: Bot,
-      route: "/huggingface-chat",
-      features: [
-        "Transformers.js",
-        "Pre-trained Models",
-        "Chat Interface",
-        "Model Variety",
-      ],
+        "Streaming text-to-speech that starts talking as it generates. Pick a voice, tune quality and speed, seek and download.",
+      icon: Zap,
+      route: "/tts-supertonic",
+      features: ["Streaming Playback", "WebGPU", "Seek & Download", "Local AI"],
     },
     {
       title: "Background Remover",
@@ -319,12 +323,17 @@ function Home() {
       ],
     },
     {
-      title: "Text to Image",
+      title: "Hugging Face Chat",
       description:
-        "Agate by LogoLabs: a 0.19B text-to-image model running entirely on your GPU. No server, prompts stay private.",
-      icon: Palette,
-      route: "/agate",
-      features: ["WebGPU", "512px output", "Local AI", "AI-content marking"],
+        "Interface for interacting with Hugging Face models. Access a wide range of pre-trained AI models.",
+      icon: Bot,
+      route: "/huggingface-chat",
+      features: [
+        "Transformers.js",
+        "Pre-trained Models",
+        "Chat Interface",
+        "Model Variety",
+      ],
     },
   ];
 
