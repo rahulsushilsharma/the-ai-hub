@@ -171,10 +171,39 @@ export const seoConfig = {
         },
       },
     },
+
+    ...(
+      [
+        ["/tts-supertonic", "Supertonic Streaming TTS | Fast In-Browser Voice", "Streaming neural text-to-speech with Supertonic, running locally in your browser on WebGPU.", "Streaming Text-to-Speech, Supertonic, WebGPU TTS, Browser AI, ONNX", "MultimediaApplication"],
+        ["/agate", "Agate | In-Browser AI Image Generation", "Agate generates images with a diffusion model running locally in your browser. No server, no uploads.", "Agate, AI Image Generation, Diffusion, WebGPU, Browser AI", "MultimediaApplication"],
+        ["/privacy", "Privacy | The AI Hub", "Everything on The AI Hub runs locally in your browser. Read how your data is handled.", "Privacy, Local AI, Browser AI", "WebPage"],
+      ] as const
+    ).map(([path, title, description, keywords, type]) => ({
+      path,
+      tags: {
+        title,
+        description,
+        ogTitle: title,
+        ogDescription: description,
+        twitterCard: "summary_large_image",
+        twitterTitle: title,
+        twitterDescription: description,
+        image: "https://ai.rahulsharma.app/assets/web-app-manifest-192x192.png",
+        url: `https://ai.rahulsharma.app${path}`,
+        keywords,
+        schema: {
+          "@context": "https://schema.org",
+          "@type": type === "WebPage" ? "WebPage" : "SoftwareApplication",
+          name: title,
+          ...(type !== "WebPage" && { applicationCategory: type, operatingSystem: "Web" }),
+          url: `https://ai.rahulsharma.app${path}`,
+        },
+      },
+    })),
   ],
 };
 
-function normalizeTags(tags: (typeof seoConfig.routes)[0]["tags"]) {
+function normalizeTags(tags: { title: string; description: string; ogTitle?: string; ogDescription?: string; url: string; image: string; keywords: string; schema: Record<string, unknown> }) {
   return {
     title: tags.ogTitle ?? tags.title,
     description: tags.ogDescription ?? tags.description,
