@@ -61,8 +61,20 @@ function useProbe(): Probe | null {
   return probe;
 }
 
+const gb = (b: number) =>
+  b >= 1e9 ? `${(b / 1e9).toFixed(2)} GB` : `${(b / 1e6).toFixed(0)} MB`;
+
+function useStorage() {
+  const [est, setEst] = useState<StorageEstimate | null>(null);
+  useEffect(() => {
+    navigator.storage?.estimate().then(setEst).catch(() => {});
+  }, []);
+  return est;
+}
+
 function Home() {
   const probe = useProbe();
+  const storage = useStorage();
   const ready = !!probe && !/^(Not|No|Blocked)/.test(probe.gpu);
 
   const heartGrid = [
@@ -368,6 +380,16 @@ function Home() {
           <dt className="text-muted-foreground">Network</dt>
           <dd>
             {probe ? (probe.online ? "Connected" : "Offline") : "Checking…"}
+          </dd>
+        </div>
+        <div className="flex justify-between gap-4 border-b py-2">
+          <dt className="text-muted-foreground">Model storage</dt>
+          <dd>
+            <Link to="/storage" className="underline-offset-4 hover:underline">
+              {storage?.usage != null
+                ? `${gb(storage.usage)} of ${gb(storage.quota ?? 0)}`
+                : "Manage"}
+            </Link>
           </dd>
         </div>
         <div className="flex justify-between gap-4 pt-2">

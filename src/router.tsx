@@ -10,6 +10,7 @@ const HuggingfaceChat = lazy(() => import("./pages/HuggingfaceChat"));
 const BgRemover = lazy(() => import("./pages/BgRemover"));
 const Agate = lazy(() => import("./pages/Agate"));
 const Privacy = lazy(() => import("./pages/Privacy"));
+const Storage = lazy(() => import("./pages/Storage"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
 const routes = [
@@ -48,6 +49,10 @@ const routes = [
       {
         path: "privacy",
         element: <Privacy />,
+      },
+      {
+        path: "storage",
+        element: <Storage />,
       },
       {
         path: "*",

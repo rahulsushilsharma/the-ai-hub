@@ -51,6 +51,9 @@ function Footer() {
           </div>
           <div className="footer-text flex items-center gap-3 text-xs text-muted-foreground">
             <span>© {new Date().getFullYear()} The AI Hub</span>
+            <Link to="/storage" className="hover:text-foreground">
+              Model storage
+            </Link>
             <Link to="/privacy" className="hover:text-foreground">
               Privacy policy
             </Link>
