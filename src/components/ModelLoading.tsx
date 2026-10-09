@@ -27,9 +27,11 @@ function ModelLoading({ progress, open, onOpenChange }: ModelLoadingProps) {
       return;
     }
 
+    if (!("file" in progress)) return; // v4 "total" progress has no file
+    const file = progress.file;
     setFilesProgress((prev) => ({
       ...prev,
-      [progress.file]: progress,
+      [file]: progress,
     }));
   }, [progress]);
 

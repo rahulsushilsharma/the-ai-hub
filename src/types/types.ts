@@ -18,7 +18,7 @@ interface Model {
   value: string;
   type: "local" | "api";
   device?: DeviceType;
-  dtype?: "fp16" | "fp32" | "q4f16";
+  dtype?: "fp16" | "fp32" | "q4" | "q4f16";
   loaded?: boolean;
 }
 

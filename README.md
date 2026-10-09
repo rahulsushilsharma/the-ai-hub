@@ -6,7 +6,7 @@ A sophisticated web application that serves as a centralized platform for variou
 
 ### 🤖 AI Chat
 - Local LLM chat interface with WebGPU acceleration
-- Support for multiple models (SmolLM2-135M, Qwen3-0.6B, gemma-3-270m)
+- Support for multiple models (LFM2.5-350M, Qwen3.5-0.8B, Qwen3-0.6B, SmolLM2-135M, gemma-3-270m)
 - Session management with conversation history
 - Model settings and configuration
 - Runs entirely in the browser using ONNX models

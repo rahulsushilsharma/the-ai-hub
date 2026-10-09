@@ -14,7 +14,7 @@ class LLMCompletionPipeline {
     CHAT_MODELS.map((m) => [m.value, m])
   );
   static instances: Record<string, TextGenerationPipeline> = {};
-  static currentModel = CHAT_MODELS[0].value; // Default: SmolLM2
+  static currentModel = CHAT_MODELS[0].value; // Default: first in CHAT_MODELS
 
   static async getInstance(progress_callback?: ProgressCallback) {
     const modelConfig = this.models[this.currentModel];

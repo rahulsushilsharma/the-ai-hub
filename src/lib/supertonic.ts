@@ -14,7 +14,6 @@ export const hasWebGPU = () => typeof navigator !== "undefined" && "gpu" in navi
 
 export function loadPipeline(onProgress: (p: ProgressInfo) => void) {
   return (pipe ??= (async () => {
-    // @ts-expect-error pipeline() overloads produce a union too complex for tsc
     const tts = (await pipeline("text-to-speech", MODEL_ID, {
       device: "webgpu",
       progress_callback: onProgress,
@@ -54,11 +53,11 @@ export async function* streamTTS(text: string, tts: TextToAudioPipeline, speaker
   const chunks = chunkText(text);
   for (let i = 0; i < chunks.length; i++) {
     const out = (await tts(chunks[i], { speaker_embeddings, num_inference_steps: quality, speed } as never)) as RawAudio;
-    let audio = out.audio;
+    let audio = out.audio as Float32Array;
     if (i < chunks.length - 1) {
       // 0.5s pause between chunks
-      audio = new Float32Array(out.audio.length + Math.floor(0.5 * out.sampling_rate));
-      audio.set(out.audio);
+      audio = new Float32Array(audio.length + Math.floor(0.5 * out.sampling_rate));
+      audio.set(out.audio as Float32Array);
     }
     yield { audio, sampleRate: out.sampling_rate, chars: chunks[i].length, index: i + 1, total: chunks.length };
   }
