@@ -26,13 +26,17 @@ const DATASETS = {
 type DataKey = keyof typeof DATASETS;
 
 const PRESETS: { label: string; hint: string; arch: ArchCfg; lr: number }[] = [
-  { label: "Default", hint: "16 dims, 4 heads, 1 layer", arch: { nEmbd: 16, nHead: 4, nLayer: 1, blockSize: 16 }, lr: 0.01 },
-  { label: "Tiny brain", hint: "4 dims, 1 head", arch: { nEmbd: 4, nHead: 1, nLayer: 1, blockSize: 16 }, lr: 0.01 },
-  { label: "Wide", hint: "32 dims", arch: { nEmbd: 32, nHead: 4, nLayer: 1, blockSize: 16 }, lr: 0.01 },
-  { label: "Deep", hint: "3 layers", arch: { nEmbd: 16, nHead: 4, nLayer: 3, blockSize: 16 }, lr: 0.01 },
-  { label: "Short memory", hint: "context of 3", arch: { nEmbd: 16, nHead: 4, nLayer: 1, blockSize: 4 }, lr: 0.01 },
-  { label: "LR too high", hint: "learning rate 0.1", arch: { nEmbd: 16, nHead: 4, nLayer: 1, blockSize: 16 }, lr: 0.1 },
+  // Default must match scripts/train-microgpt.ts: that is the model that loads pre-trained
+  { label: "Default", hint: "32 dims, 4 heads, 2 layers", arch: { nEmbd: 32, nHead: 4, nLayer: 2, blockSize: 16 }, lr: 0.01 },
+  { label: "Tiny brain", hint: "8 dims, 1 head, 1 layer", arch: { nEmbd: 8, nHead: 1, nLayer: 1, blockSize: 16 }, lr: 0.01 },
+  { label: "Wide", hint: "64 dims", arch: { nEmbd: 64, nHead: 4, nLayer: 2, blockSize: 16 }, lr: 0.01 },
+  { label: "Deep", hint: "4 layers", arch: { nEmbd: 32, nHead: 4, nLayer: 4, blockSize: 16 }, lr: 0.01 },
+  { label: "Short memory", hint: "context of 3", arch: { nEmbd: 32, nHead: 4, nLayer: 2, blockSize: 4 }, lr: 0.01 },
+  { label: "LR too high", hint: "learning rate 0.1", arch: { nEmbd: 32, nHead: 4, nLayer: 2, blockSize: 16 }, lr: 0.1 },
 ];
+const sameArch = (a: ArchCfg, b: ArchCfg) =>
+  a.nEmbd === b.nEmbd && a.nHead === b.nHead && a.nLayer === b.nLayer && a.blockSize === b.blockSize;
+type Pretrained = { step: number; loss: number; curve: Point[] };
 
 const RUN_COLORS = ["#e07a5f", "#3d9970", "#b36bd1", "#d4a017", "#2a9bb5", "#c0577d"];
 
@@ -91,6 +95,12 @@ export default function Microgpt() {
   const [arch, setArch] = useState<ArchCfg>(PRESETS[0].arch);
   const [lr, setLr] = useState(0.01);
   const [steps, setSteps] = useState(500);
+  const [batchSize, setBatchSize] = useState(8);
+  const [pretrained, setPretrained] = useState<Pretrained | null>(null);
+  const [scratch, setScratch] = useState(0); // bump to rebuild without the checkpoint
+  const usePre = useRef(true);
+  const preCache = useRef<unknown>(null);
+  const initGen = useRef(0);
   const [sel, setSel] = useState<"tok" | "pos" | "norm" | "attn" | "mlp" | "head">("attn");
 
   // model + run state
@@ -142,6 +152,8 @@ export default function Microgpt() {
     w.onmessage = ({ data: { type, payload } }) => {
       if (type === "ready") {
         setChars(payload.chars); setNumParams(payload.numParams); setReady(true);
+        setPretrained(payload.pretrained);
+        if (payload.pretrained) setPoints(payload.pretrained.curve);
       } else if (type === "steps") {
         setPoints((p) => [...p, ...payload.batch]);
         if (payload.last) setLast(payload.last);
@@ -159,8 +171,9 @@ export default function Microgpt() {
   /* (re)build the model whenever data or architecture changes; the previous run is kept for comparison */
   useEffect(() => {
     if (docs.length < 3) return;
-    const id = setTimeout(() => {
+    const id = setTimeout(async () => {
       const { points: pts, numParams: np, arch: a, dataKey: dk } = live.current;
+      const my = ++initGen.current;
       if (pts.length > 0) {
         const tail = pts.slice(-20);
         setRuns((rs) => [
@@ -177,13 +190,21 @@ export default function Microgpt() {
           },
         ]);
       }
-      setPoints([]); setLast(null); setCheckpoints([]); setBatch([]); setTraining(false); setReady(false);
-      worker.current?.postMessage({ type: "init", payload: { text, options: { ...arch, learningRate: lr, numSteps: steps } } });
+      setPoints([]); setLast(null); setCheckpoints([]); setBatch([]); setTraining(false); setReady(false); setPretrained(null);
+      // names + Default preset: start from the shipped checkpoint (scripts/train-microgpt.ts)
+      const wantPre = usePre.current;
+      usePre.current = true;
+      let ck: unknown;
+      if (wantPre && dk === "names" && sameArch(arch, PRESETS[0].arch)) {
+        ck = preCache.current ??= await fetch("/microgpt/pretrained-names.json").then((r) => (r.ok ? r.json() : null)).catch(() => null);
+        if (my !== initGen.current) return; // a newer rebuild started while we were fetching
+      }
+      worker.current?.postMessage({ type: "init", payload: { text, options: { ...arch, learningRate: lr, numSteps: steps }, pretrained: ck ?? undefined } });
     }, 350);
     return () => clearTimeout(id);
     // learning rate / steps are applied at train time, not build time
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [text, arch]);
+  }, [text, arch, scratch]);
 
   /* ask the model what it predicts for the current prefix */
   const prefixIds = useMemo(
@@ -213,7 +234,7 @@ export default function Microgpt() {
 
   const train = () => {
     setTraining(true);
-    worker.current?.postMessage({ type: "train", payload: { steps, lr, checkpointEvery: Math.max(10, Math.round(steps / 5)) } });
+    worker.current?.postMessage({ type: "train", payload: { steps, lr, batchSize, checkpointEvery: Math.max(10, Math.round(steps / 5)) } });
   };
 
   const applyPreset = (p: (typeof PRESETS)[number]) => { setArch(p.arch); setLr(p.lr); };
@@ -262,7 +283,7 @@ export default function Microgpt() {
             <li><b className="text-foreground">Compare</b> · tweak, retrain and compare runs side by side</li>
           </ol>
           <p className="mt-3 text-muted-foreground">
-            Everything runs on your CPU in this tab. Each multiplication is tracked by a hand-written autograd engine,
+            Everything runs on your CPU in this tab. The forward and backward passes are written by hand over plain arrays,
             so nothing is hidden inside a library.
           </p>
         </div>
@@ -423,9 +444,23 @@ export default function Microgpt() {
                   <Button key={s} size="sm" variant={steps === s ? "default" : "outline"} disabled={training} onClick={() => setSteps(s)}>{s}</Button>
                 ))}
               </div>
-              <p className="text-xs text-muted-foreground">One step = one example. You can train again to continue.</p>
+              <p className="text-xs text-muted-foreground">One step = one batch of examples. You can train again to continue.</p>
+            </div>
+            <div className="space-y-2">
+              <Label className="flex justify-between"><span>Batch size</span><span className="font-mono text-primary">{batchSize}</span></Label>
+              <Slider min={1} max={32} step={1} value={[batchSize]} disabled={training} onValueChange={([v]) => setBatchSize(v)} />
+              <p className="text-xs text-muted-foreground">Names averaged per step. Bigger = smoother learning, slower steps.</p>
             </div>
           </div>
+          {pretrained && (
+            <div className="flex flex-wrap items-center gap-3 rounded-md border bg-card p-3 text-sm">
+              <span className="text-muted-foreground">
+                Loaded a model already trained on {docs.length.toLocaleString()} names ({pretrained.step.toLocaleString()} steps, loss {pretrained.loss.toFixed(2)}).
+                Train more, or start over from random weights.
+              </span>
+              <Button size="sm" variant="outline" disabled={training} onClick={() => { usePre.current = false; setScratch((n) => n + 1); }}>Start from scratch</Button>
+            </div>
+          )}
           <div className="flex flex-wrap items-center gap-2">
             <Button onClick={train} disabled={!ready || training || stale}>
               {(!ready || training) && <Loader2 className="animate-spin" />}

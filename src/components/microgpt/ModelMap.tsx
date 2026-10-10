@@ -268,7 +268,7 @@ export default function ModelMap({ rows, labels, vocabLabels, arch, temp, head, 
 
   return (
     <div className="overflow-x-auto rounded-2xl border bg-card">
-      <div ref={root} className="relative px-4 pb-4 pt-2" style={{ minWidth: 520 + L * 380, minHeight: minH || undefined }}>
+      <div ref={root} className="relative px-4 pb-4 pt-2" style={{ minWidth: 460 + L * 330, minHeight: minH || undefined }}>
         <svg ref={svg} className="pointer-events-none absolute left-0 top-0 z-0" aria-hidden />
         {band && <div aria-hidden className="pointer-events-none absolute inset-x-2 z-0 rounded-md bg-foreground/[0.06]" style={{ top: band.top, height: band.h }} />}
 
