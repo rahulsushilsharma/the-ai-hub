@@ -176,6 +176,7 @@ export const seoConfig = {
       [
         ["/tts-supertonic", "Supertonic Streaming TTS | Fast In-Browser Voice", "Streaming neural text-to-speech with Supertonic, running locally in your browser on WebGPU.", "Streaming Text-to-Speech, Supertonic, WebGPU TTS, Browser AI, ONNX", "MultimediaApplication"],
         ["/agate", "Agate | In-Browser AI Image Generation", "Agate generates images with a diffusion model running locally in your browser. No server, no uploads.", "Agate, AI Image Generation, Diffusion, WebGPU, Browser AI", "MultimediaApplication"],
+        ["/microgpt", "microGPT | Train a GPT in Your Browser", "Train a tiny GPT from scratch and generate names, entirely in your browser tab. No server, no GPU.", "microGPT, Train GPT in browser, Transformer, JavaScript, Browser AI", "EducationalApplication"],
         ["/privacy", "Privacy | The AI Hub", "Everything on The AI Hub runs locally in your browser. Read how your data is handled.", "Privacy, Local AI, Browser AI", "WebPage"],
       ] as const
     ).map(([path, title, description, keywords, type]) => ({

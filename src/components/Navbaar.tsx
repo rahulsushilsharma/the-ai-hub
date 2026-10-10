@@ -2,6 +2,7 @@ import { useTheme } from "@/Theme";
 import { Scope, animate, createScope, spring } from "animejs";
 import {
   Bot,
+  Brain,
   Home,
   ImageIcon,
   Menu,
@@ -47,6 +48,11 @@ const navItems = [
     label: "Text to Image",
     path: "/agate",
     icon: <Palette className="w-3 h-3" />,
+  },
+  {
+    label: "microGPT",
+    path: "/microgpt",
+    icon: <Brain className="w-3 h-3" />,
   },
 ];
 

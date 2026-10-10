@@ -10,6 +10,7 @@ import {
 import {
   ArrowRight,
   Bot,
+  Brain,
   Image,
   MessageCircle,
   Mic,
@@ -333,6 +334,14 @@ function Home() {
         "Download Results",
         "High Quality",
       ],
+    },
+    {
+      title: "microGPT",
+      description:
+        "Train a tiny GPT from scratch on names and sample new ones, live in your browser. Pure JavaScript, no GPU needed.",
+      icon: Brain,
+      route: "/microgpt",
+      features: ["Trains in-tab", "Web Worker", "Loss curve", "No GPU"],
     },
     {
       title: "Hugging Face Chat",

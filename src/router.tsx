@@ -9,6 +9,7 @@ const TtsSupertonic = lazy(() => import("./pages/TtsSupertonic"));
 const HuggingfaceChat = lazy(() => import("./pages/HuggingfaceChat"));
 const BgRemover = lazy(() => import("./pages/BgRemover"));
 const Agate = lazy(() => import("./pages/Agate"));
+const Microgpt = lazy(() => import("./pages/Microgpt"));
 const Privacy = lazy(() => import("./pages/Privacy"));
 const Storage = lazy(() => import("./pages/Storage"));
 const NotFound = lazy(() => import("./pages/NotFound"));
@@ -45,6 +46,10 @@ const routes = [
       {
         path: "agate",
         element: <Agate />,
+      },
+      {
+        path: "microgpt",
+        element: <Microgpt />,
       },
       {
         path: "privacy",
