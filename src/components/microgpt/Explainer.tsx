@@ -31,7 +31,7 @@ const maxAbs = (rows: number[][]) => Math.max(1e-6, ...rows.flatMap((r) => r.map
 function cellColor(x: number, scale: number) {
   const a = Math.min(1, Math.abs(x) / scale);
   return x >= 0
-    ? `color-mix(in oklab, var(--primary) ${(a * 100).toFixed(0)}%, var(--card))`
+    ? `color-mix(in oklab, var(--mg-emb) ${(a * 100).toFixed(0)}%, var(--card))`
     : `color-mix(in oklab, var(--foreground) ${(a * 65).toFixed(0)}%, var(--card))`;
 }
 
@@ -59,10 +59,10 @@ function Strip({ v, scale, hl, width = 112, className, col, row }: {
   );
 }
 
-function Chip({ children, tone }: { children: React.ReactNode; tone?: "primary" | "muted" }) {
+function Chip({ children, tone }: { children: React.ReactNode; tone?: "selected" | "muted" }) {
   return (
     <span className={cn("inline-flex h-6 min-w-6 items-center justify-center rounded border px-1 font-mono text-sm",
-      tone === "primary" && "border-primary/50 bg-primary/10", tone === "muted" && "text-muted-foreground")}>
+      tone === "selected" && "border-foreground/60 bg-foreground/10", tone === "muted" && "text-muted-foreground")}>
       {children}
     </span>
   );
@@ -91,7 +91,7 @@ function AttentionDetail({
   scale: { qkv: number; res: number; attn: number };
   spot: number | null; // guided tour: which numbered section to emphasise
 }) {
-  const sec = (n: number) => cn("grid gap-3 rounded-md transition-opacity duration-300 xl:grid-cols-[20rem_minmax(0,1fr)] xl:gap-x-8 xl:[&>*:first-child]:row-span-2 xl:[&>*:not(:first-child)]:col-start-2", spot != null && (spot === n ? "ring-2 ring-primary/60 ring-offset-8 ring-offset-card" : "opacity-30"));
+  const sec = (n: number) => cn("grid gap-3 rounded-md transition-opacity duration-300 xl:grid-cols-[20rem_minmax(0,1fr)] xl:gap-x-8 xl:[&>*:first-child]:row-span-2 xl:[&>*:not(:first-child)]:col-start-2", spot != null && (spot === n ? "ring-2 ring-foreground/40 ring-offset-8 ring-offset-card" : "opacity-30"));
   const [hover, setHover] = useState<[number, number] | null>(null);
   const d = arch.nEmbd / arch.nHead;
   const hl: [number, number] = [head * d, head * d + d];
@@ -124,7 +124,7 @@ function AttentionDetail({
             {([["Query", "--mg-q"], ["Key", "--mg-k"], ["Value", "--mg-v"]] as const).map(([t, c]) => <span key={t} className="text-xs font-semibold" style={{ color: `var(${c})` }}>{t}</span>)}
             {L.map((l, i) => (
               <div key={i} className="contents">
-                <span className={cn(i === row && "text-primary")}><Chip tone={i === row ? "primary" : undefined}>{labels[i]}</Chip></span>
+                <span className={cn(i === row && "font-bold")}><Chip tone={i === row ? "selected" : undefined}>{labels[i]}</Chip></span>
                 <VectorCanvas v={l.q} scale={scale.qkv} hl={hl} hue="--mg-q" w={112} h={18} />
                 <VectorCanvas v={l.k} scale={scale.qkv} hl={hl} hue="--mg-k" w={112} h={18} />
                 <VectorCanvas v={l.v} scale={scale.qkv} hl={hl} hue="--mg-v" w={112} h={18} />
@@ -159,13 +159,13 @@ function AttentionDetail({
             <div key={j} className="contents">
               <Chip>{labels[j]}</Chip>
               <span className="font-mono text-xs text-muted-foreground">× {(weights[row][j] * 100).toFixed(0)}%</span>
-              <span className="h-2 rounded-sm bg-primary" style={{ width: `${Math.max(2, weights[row][j] * 120)}px` }} />
+              <span className="h-2 rounded-sm bg-[var(--mg-attn)]" style={{ width: `${Math.max(2, weights[row][j] * 120)}px` }} />
               <Strip v={L[j].v.slice(hl[0], hl[1])} scale={scale.qkv} width={Math.max(24, d * 14)} />
             </div>
           ))}
           <span className="font-mono text-xs text-muted-foreground">sum</span>
           <span /><span />
-          <Strip v={fl.heads[head].out} scale={scale.qkv} width={Math.max(24, d * 14)} className="ring-1 ring-primary" />
+          <Strip v={fl.heads[head].out} scale={scale.qkv} width={Math.max(24, d * 14)} className="ring-1 ring-foreground" />
         </div>
       </div>
 
@@ -183,7 +183,7 @@ function AttentionDetail({
           <Op>+</Op>
           <div><p className="font-mono text-[10px] text-muted-foreground">input</p><Strip v={fl.xIn} scale={scale.res} /></div>
           <Op>=</Op>
-          <div><p className="font-mono text-[10px] text-primary">result</p><Strip v={fl.res1} scale={scale.res} className="ring-1 ring-primary" /></div>
+          <div><p className="font-mono text-[10px] font-semibold text-foreground">result</p><Strip v={fl.res1} scale={scale.res} className="ring-1 ring-foreground" /></div>
         </div>
       </div>
     </div>
@@ -275,7 +275,7 @@ function MlpDetail({ layer, rows, labels, row, scale }: {
         <Op>+</Op>
         <div><p className="font-mono text-[10px] text-muted-foreground">input</p><Strip v={l.res1} scale={scale.res} /></div>
         <Op>=</Op>
-        <div><p className="font-mono text-[10px] text-primary">result</p><Strip v={l.res2} scale={scale.res} className="ring-1 ring-primary" /></div>
+        <div><p className="font-mono text-[10px] font-semibold text-foreground">result</p><Strip v={l.res2} scale={scale.res} className="ring-1 ring-foreground" /></div>
       </div>
     </div>
   );
@@ -359,7 +359,7 @@ function OutputPanel({ logits, finalVec, vocabLabels, labelFor, temp, setTemp, r
             <div className="flex items-center gap-2"><Strip v={finalVec} scale={resScale} /><Op>→</Op><Strip v={logits} scale={logitScale} width={140} /></div>
           </div>
           <div className="space-y-2">
-            <p className="flex justify-between gap-2"><span><b className="text-foreground">② Turn scores into chances.</b> Divide by the temperature, then softmax.</span><span className="font-mono text-primary">T={temp.toFixed(1)}</span></p>
+            <p className="flex justify-between gap-2"><span><b className="text-foreground">② Turn scores into chances.</b> Divide by the temperature, then softmax.</span><span className="font-mono text-foreground">T={temp.toFixed(1)}</span></p>
             <Slider min={0.1} max={2} step={0.1} value={[temp]} onValueChange={([v]) => setTemp(v)} aria-label="Temperature" />
             <p className="text-xs">Low temperature: the favourite takes almost everything. High: the chances even out and odd letters get picked.</p>
           </div>
@@ -372,13 +372,13 @@ function OutputPanel({ logits, finalVec, vocabLabels, labelFor, temp, setTemp, r
             </div>
             {mode === "topk" && (
               <div className="space-y-1">
-                <p className="flex justify-between text-xs"><span>Keep only the k most likely</span><span className="font-mono text-primary">k={k}</span></p>
+                <p className="flex justify-between text-xs"><span>Keep only the k most likely</span><span className="font-mono text-foreground">k={k}</span></p>
                 <Slider min={1} max={Math.max(2, probs.length)} step={1} value={[k]} onValueChange={([v]) => setK(v)} aria-label="Top-k" />
               </div>
             )}
             {mode === "topp" && (
               <div className="space-y-1">
-                <p className="flex justify-between text-xs"><span>Keep the smallest set adding up to p</span><span className="font-mono text-primary">p={pCut.toFixed(2)}</span></p>
+                <p className="flex justify-between text-xs"><span>Keep the smallest set adding up to p</span><span className="font-mono text-foreground">p={pCut.toFixed(2)}</span></p>
                 <Slider min={0.05} max={1} step={0.05} value={[pCut]} onValueChange={([v]) => setPCut(v)} aria-label="Top-p" />
               </div>
             )}
@@ -393,7 +393,7 @@ function OutputPanel({ logits, finalVec, vocabLabels, labelFor, temp, setTemp, r
             </div>
             <ul className="space-y-1">
               {shown.map((i) => (
-                <li key={i} className={cn("grid grid-cols-[1.5rem_1fr_1fr_1fr] items-center gap-2 rounded font-mono text-xs", !kept[i] && "opacity-50", draw?.done && draw.idx === i && "bg-primary/10")}>
+                <li key={i} className={cn("grid grid-cols-[1.5rem_1fr_1fr_1fr] items-center gap-2 rounded font-mono text-xs", !kept[i] && "opacity-50", draw?.done && draw.idx === i && "bg-foreground/10")}>
                   <span className="text-center text-sm">{vocabLabels[i]}</span>
                   <span className="flex items-center gap-1" title={`score ${logits[i].toFixed(2)}`}>
                     <span className="relative h-3 flex-1 rounded-sm bg-muted/50">
@@ -482,7 +482,7 @@ export default function Explainer({
   const lesson = tour != null ? LESSONS[tour] : null;
   // spotlight: lit zones get a ring, the rest dim. A lesson with no zones dims nothing.
   const zc = (z: Zone) =>
-    !lesson || lesson.zones.length === 0 ? "" : lesson.zones.includes(z) ? "ring-2 ring-primary/60" : "opacity-25";
+    !lesson || lesson.zones.length === 0 ? "" : lesson.zones.includes(z) ? "ring-2 ring-foreground/40" : "opacity-25";
 
   const reduced = () => typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   const playFlow = () => {
@@ -549,17 +549,6 @@ export default function Explainer({
   };
 
   const guess = top(last);
-  const n = arch.nEmbd;
-  const steps: { kind: "emb" | "attn" | "mlp" | "out"; title: string; hue: string; text: string }[] = [
-    { kind: "emb", title: "Embedding", hue: "--mg-emb", text: `Each letter is swapped for a learned list of ${n} numbers, mixed with a second list that says where it sits in the name.` },
-    { kind: "attn", title: "Attention", hue: "--mg-attn", text: "Each letter looks back at the letters before it and pulls in what helps. This is the only step where letters share information." },
-    { kind: "mlp", title: "MLP", hue: "--mg-mlp", text: `Each letter’s numbers then pass through ${4 * n} neurons on their own. Different neurons fire for different patterns.` },
-    { kind: "out", title: "Output", hue: "--mg-out", text: "The final numbers become a score for every possible letter, then chances. One is drawn, added to the name, and the loop starts again." },
-  ];
-  const openStep = (kind: "emb" | "attn" | "mlp" | "out") => {
-    setOpen({ kind, layer: 0 });
-    document.getElementById("zone-map")?.scrollIntoView({ behavior: reduced() ? "auto" : "smooth", block: "start" });
-  };
 
   const generate = () => {
     if (busy) return; // these logits belong to the previous input
@@ -669,28 +658,6 @@ export default function Explainer({
           zones={lesson?.zones ?? []} expanded={open} setExpanded={setOpen} detail={detail} />
       </div>
 
-      <section aria-labelledby="mg-steps" className="space-y-3">
-        <h2 id="mg-steps" className="text-lg font-semibold tracking-tight">What happens at each step</h2>
-        <ol className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          {steps.map((st, i) => (
-            <li key={st.kind}>
-              <button type="button" onClick={() => openStep(st.kind)} style={{ "--hue": `var(${st.hue})` } as React.CSSProperties}
-                className="group flex h-full w-full flex-col rounded-xl border bg-card p-4 text-left transition-colors hover:border-[var(--hue)] focus-visible:outline-2 focus-visible:outline-ring">
-                <span className="flex items-center gap-2 text-sm font-semibold">
-                  <span className="grid size-6 place-items-center rounded-full text-xs text-foreground" style={{ background: "color-mix(in oklab, var(--hue) 35%, var(--card))" }}>{i + 1}</span>
-                  {st.title}
-                </span>
-                <span className="mt-2 flex-1 text-sm leading-relaxed text-muted-foreground">{st.text}</span>
-                <span className="mt-3 text-xs font-medium text-foreground/80 group-hover:underline">Open {st.title}</span>
-              </button>
-            </li>
-          ))}
-        </ol>
-        <p className="text-xs text-muted-foreground">
-          Attention and MLP together make one block. This model repeats the block {arch.nLayer} time{arch.nLayer > 1 ? "s" : ""}; GPT-3 repeats it 96 times.
-        </p>
-      </section>
-
       <button type="button" onClick={() => setDeep((d) => !d)} aria-expanded={deep}
         className="w-full rounded-md border border-dashed px-4 py-3 text-left text-sm text-muted-foreground transition-colors hover:border-primary hover:text-foreground">
         <b className="text-foreground">{deep ? "▾" : "▸"} Every number, row by row</b>
@@ -720,12 +687,12 @@ export default function Explainer({
                 <div key={l} className="flex items-end gap-1">
                   <span className="w-4" />
                   <button type="button" onClick={() => setOpen({ layer: l, kind: "attn" })} aria-pressed={open?.layer === l && open.kind === "attn"}
-                    className={cn("rounded border px-1.5 py-1 text-[10px] font-semibold leading-tight transition-opacity hover:border-primary", open?.layer === l && open.kind === "attn" ? "border-primary bg-primary/10" : "", zc("attn"))} style={{ width: w }}>
+                    className={cn("rounded border px-1.5 py-1 text-[10px] font-semibold leading-tight transition-opacity hover:border-foreground/60", open?.layer === l && open.kind === "attn" ? "border-foreground bg-foreground/10" : "", zc("attn"))} style={{ width: w }}>
                     Attention {arch.nLayer > 1 ? l + 1 : ""} ▸
                   </button>
                   <span className="w-4" />
                   <button type="button" onClick={() => setOpen({ layer: l, kind: "mlp" })} aria-pressed={open?.layer === l && open.kind === "mlp"}
-                    className={cn("rounded border px-1.5 py-1 text-[10px] font-semibold leading-tight transition-opacity hover:border-primary", open?.layer === l && open.kind === "mlp" ? "border-primary bg-primary/10" : "", zc("mlp"))} style={{ width: w }}>
+                    className={cn("rounded border px-1.5 py-1 text-[10px] font-semibold leading-tight transition-opacity hover:border-foreground/60", open?.layer === l && open.kind === "mlp" ? "border-foreground bg-foreground/10" : "", zc("mlp"))} style={{ width: w }}>
                     MLP {arch.nLayer > 1 ? l + 1 : ""} ▸
                   </button>
                 </div>
@@ -739,7 +706,7 @@ export default function Explainer({
                 onMouseEnter={() => setHot(i)} onMouseLeave={() => setHot(null)}
                 onClick={() => setFocus(i)}
                 className={cn("flex cursor-pointer items-center gap-1 rounded py-0.5", (hot === i || row === i) && "bg-muted/60")}>
-                <div className="w-8"><Chip tone={row === i ? "primary" : undefined}>{labels[i]}</Chip></div>
+                <div className="w-8"><Chip tone={row === i ? "selected" : undefined}>{labels[i]}</Chip></div>
                 <Strip v={r.tokEmb} scale={scale.emb} width={w} col={0} row={i} className={zc("tok")} /><Op>+</Op>
                 <Strip v={r.posEmb} scale={scale.pos} width={w} col={1} row={i} className={zc("pos")} /><Op>→</Op>
                 <Strip v={r.x0} scale={scale.norm} width={w} col={2} row={i} className={zc("sum")} />

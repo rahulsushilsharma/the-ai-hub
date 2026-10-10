@@ -179,8 +179,13 @@ body {
   h1,
   h2,
   h3 {
-    font-family: var(--font-serif);
     text-wrap: balance;
+  }
+
+  /* serif for display headings only; small h3 panel titles read better in the sans */
+  h1,
+  h2 {
+    font-family: var(--font-serif);
   }
 
   p {
@@ -282,7 +287,7 @@ body {
   --mg-k: #f43f5e;
   --mg-v: #10b981;
   --mg-attn: #8b5cf6;
-  --mg-mlp: #6366f1;
+  --mg-mlp: #65a30d;
   --mg-out: #f59e0b;
 }
 .dark {
@@ -291,6 +296,6 @@ body {
   --mg-k: #fb7185;
   --mg-v: #34d399;
   --mg-attn: #a78bfa;
-  --mg-mlp: #818cf8;
+  --mg-mlp: #a3e635;
   --mg-out: #fbbf24;
 }

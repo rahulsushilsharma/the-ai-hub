@@ -76,7 +76,7 @@ function Stepper({ label, value, set, min, max, step = 1, disabled, hint }: {
 }) {
   return (
     <div className="space-y-2">
-      <Label className="flex justify-between"><span>{label}</span><span className="font-mono text-primary">{value}</span></Label>
+      <Label className="flex justify-between"><span>{label}</span><span className="font-mono text-foreground">{value}</span></Label>
       <Slider min={min} max={max} step={step} value={[value]} disabled={disabled} onValueChange={([v]) => set(v)} />
       {hint && <p className="text-xs text-muted-foreground">{hint}</p>}
     </div>
@@ -266,8 +266,6 @@ export default function Microgpt() {
         <PageHeader
           icon={Brain}
           title="Build a GPT"
-          blurb="A real, tiny GPT running in your browser. Watch it guess the next letter of a name, open every step to see why, then train your own."
-          tags={["Learn", "No GPU", "No ML library", "Runs in your browser"]}
         />
 
         {tab !== "explain" && (
@@ -431,9 +429,9 @@ export default function Microgpt() {
 
         {/* 3 TRAIN */}
         <Section n={3} title="Let it practise" lead="Each step it reads a few names, checks how surprised it was by each real next letter (the loss), works out which numbers were to blame (backpropagation), and nudges them a little. Falling loss means it is learning.">
-          <div className="grid gap-5 rounded-md border bg-card p-4 sm:grid-cols-2">
+          <div className="grid gap-5 rounded-md border bg-card p-4 md:grid-cols-3">
             <div className="space-y-2">
-              <Label className="flex justify-between"><span>Learning rate</span><span className="font-mono text-primary">{lr}</span></Label>
+              <Label className="flex justify-between"><span>Learning rate</span><span className="font-mono text-foreground">{lr}</span></Label>
               <Slider min={0.001} max={0.1} step={0.001} value={[lr]} disabled={training} onValueChange={([v]) => setLr(v)} />
               <p className="text-xs text-muted-foreground">How big each nudge is. Too small and it learns slowly; too big and it overshoots, so the loss jumps around.</p>
             </div>
@@ -447,7 +445,7 @@ export default function Microgpt() {
               <p className="text-xs text-muted-foreground">One step reads one batch of names. Train again to keep going.</p>
             </div>
             <div className="space-y-2">
-              <Label className="flex justify-between"><span>Batch size</span><span className="font-mono text-primary">{batchSize}</span></Label>
+              <Label className="flex justify-between"><span>Batch size</span><span className="font-mono text-foreground">{batchSize}</span></Label>
               <Slider min={1} max={32} step={1} value={[batchSize]} disabled={training} onValueChange={([v]) => setBatchSize(v)} />
               <p className="text-xs text-muted-foreground">How many names it reads per step. More gives steadier learning but slower steps.</p>
             </div>
@@ -536,19 +534,19 @@ export default function Microgpt() {
             <div className="overflow-x-auto rounded-md border bg-card">
               <table className="w-full text-sm">
                 <thead className="border-b text-left text-xs text-muted-foreground">
-                  <tr><th className="p-3">Run</th><th>Data</th><th>Params</th><th>Steps</th><th>Final loss</th></tr>
+                  <tr>{["Run", "Data", "Params", "Steps", "Final loss"].map((h) => <th key={h} className="px-3 py-2.5 font-medium">{h}</th>)}</tr>
                 </thead>
-                <tbody className="font-mono text-xs">
+                <tbody className="font-mono text-xs [&_td]:px-3 [&_td]:py-2.5">
                   {[...runs, ...(trainedSteps ? [{
                     id: "live", label: `${curLabel} (current)`, params: numParams, points,
                     finalLoss: points.slice(-20).reduce((s, p) => s + p.loss, 0) / Math.max(1, points.slice(-20).length),
                     color: "var(--primary)", data: DATASETS[dataKey].label,
                   } as Run] : [])].map((r) => (
                     <tr key={r.id} className="border-b last:border-0">
-                      <td className="p-3"><span className="mr-2 inline-block size-2 rounded-full" style={{ background: r.color }} />{r.label}</td>
+                      <td><span className="mr-2 inline-block size-2 rounded-full" style={{ background: r.color }} />{r.label}</td>
                       <td>{r.data}</td>
                       <td>{r.params.toLocaleString()}</td>
-                      <td>{r.points.length}</td>
+                      <td>{(r.points.at(-1)?.step ?? 0).toLocaleString()}</td>
                       <td>{r.finalLoss.toFixed(3)}</td>
                     </tr>
                   ))}

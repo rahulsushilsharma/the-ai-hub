@@ -16,8 +16,8 @@ export default function PageHeader({
 }: {
   icon: LucideIcon;
   title: string;
-  blurb: string;
-  tags: string[];
+  blurb?: string;
+  tags?: string[];
 }) {
   return (
     <header className="mb-10 text-center">
@@ -27,12 +27,16 @@ export default function PageHeader({
       <h1 className="mb-3 text-4xl font-semibold tracking-tighter md:text-5xl">
         {title}
       </h1>
-      <p className="mx-auto max-w-md text-sm text-muted-foreground md:text-base">
-        {blurb}
-      </p>
-      <p className="mt-4 font-mono text-xs text-muted-foreground">
-        {tags.join(" · ")}
-      </p>
+      {blurb && (
+        <p className="mx-auto max-w-md text-sm text-muted-foreground md:text-base">
+          {blurb}
+        </p>
+      )}
+      {tags?.length ? (
+        <p className="mt-4 font-mono text-xs text-muted-foreground">
+          {tags.join(" · ")}
+        </p>
+      ) : null}
     </header>
   );
 }

@@ -19,7 +19,7 @@ function onTheme(fn: () => void) {
 
 export default function VectorCanvas({ v, scale, w = 56, h = 20, hue, seq, vertical, hl, title, className }: {
   v: number[]; scale: number; w?: number; h?: number;
-  hue?: string; // CSS var of a stage colour, e.g. "--mg-q": light = low, strong = high. Without it: diverging primary/foreground.
+  hue?: string; // CSS var of a stage colour, e.g. "--mg-q": light = low, strong = high. Without it: diverging slate/foreground.
   seq?: boolean; // values are non-negative (weights, ReLU, probabilities): 0 = lightest
   vertical?: boolean; // stack values top to bottom (narrow tile) instead of left to right
   hl?: [number, number]; // values outside this range are drawn faint (one attention head)
@@ -52,7 +52,7 @@ export default function VectorCanvas({ v, scale, w = 56, h = 20, hue, seq, verti
         return s;
       };
     } else {
-      const prim = get("--primary", "#6366f1"), fg = get("--foreground", "#000");
+      const prim = get("--mg-emb", "#94a3b8"), fg = get("--foreground", "#000");
       const mag = scaleLinear().domain([0, scale || 1]).range([0, 1]).clamp(true);
       colour = (x) => {
         const k = Math.round(mag(Math.abs(x)) * 20) * (x < 0 ? -1 : 1);

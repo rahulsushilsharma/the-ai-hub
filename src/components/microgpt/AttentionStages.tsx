@@ -87,7 +87,7 @@ export default function AttentionStages({ L, head, d, hl, labels, row, hover, se
         {labels.map((l, j) => <span key={j} className="text-center text-muted-foreground">{l}</span>)}
         {Array.from({ length: T }, (_, i) => (
           <Fragment key={i}>
-            <span className={cn("pr-1 text-right", i === row ? "font-bold text-primary" : "text-muted-foreground")}
+            <span className={cn("pr-1 text-right", i === row ? "font-bold text-foreground" : "text-muted-foreground")}
               style={{ lineHeight: `${cs}px` }}>{labels[i]}</span>
             {Array.from({ length: T }, (_, j) => <Fragment key={j}>{cell(i, j)}</Fragment>)}
           </Fragment>
@@ -144,7 +144,7 @@ export default function AttentionStages({ L, head, d, hl, labels, row, hover, se
             {L.map((l, i) => (
               <div key={i} data-cell className="flex items-center gap-1" style={{ height: cs }}
                 onMouseEnter={() => setFlow({ hoverToken: i })} onMouseLeave={() => setFlow({ hoverToken: null })}>
-                <span className={cn("w-3 font-mono text-[10px]", i === row ? "font-bold text-primary" : "text-muted-foreground")}>{labels[i]}</span>
+                <span className={cn("w-3 font-mono text-[10px]", i === row ? "font-bold text-foreground" : "text-muted-foreground")}>{labels[i]}</span>
                 <VectorCanvas v={l.heads[head].out} scale={qkvScale} hue="--mg-attn" w={Math.max(36, d * 12)} h={Math.max(8, cs - 3)}
                   className={cn((i === row || hover?.[0] === i) && "ring-1 ring-[var(--mg-attn)]")} title={`blended value for ${labels[i]}`} />
               </div>

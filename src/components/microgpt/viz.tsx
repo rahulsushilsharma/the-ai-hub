@@ -75,71 +75,6 @@ export function LossChart({ runs, baseline }: { runs: RunLine[]; baseline: numbe
   );
 }
 
-/* ---------- Attention heatmap ---------- */
-
-export function Heatmap({ labels, rows }: { labels: string[]; rows: number[][] }) {
-  const n = labels.length;
-  return (
-    <div className="inline-block">
-      <div className="grid gap-px font-mono text-[10px]" style={{ gridTemplateColumns: `auto repeat(${n}, minmax(0, 1.6rem))` }}>
-        <span />
-        {labels.map((l, j) => (
-          <span key={j} className="text-center text-muted-foreground">{l}</span>
-        ))}
-        {rows.map((row, i) => (
-          <div key={i} className="contents">
-            <span className="pr-1 text-right text-muted-foreground">{labels[i]}</span>
-            {labels.map((_, j) =>
-              j <= i ? (
-                <span
-                  key={j}
-                  title={`"${labels[i]}" attends to "${labels[j]}": ${(row[j] * 100).toFixed(0)}%`}
-                  className="grid h-6 place-items-center rounded-[3px] bg-primary text-primary-foreground"
-                  style={{ opacity: 0.08 + 0.92 * row[j] }}
-                >
-                  {row[j] >= 0.25 ? Math.round(row[j] * 100) : ""}
-                </span>
-              ) : (
-                <span key={j} className="h-6 rounded-[3px] bg-muted/40" />
-              ),
-            )}
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-/* ---------- Probability bars ---------- */
-
-export function ProbBars({
-  probs, labels, onPick, max = 12,
-}: { probs: number[]; labels: string[]; onPick?: (i: number) => void; max?: number }) {
-  const top = probs.map((p, i) => ({ p, i })).sort((a, b) => b.p - a.p).slice(0, max);
-  const best = top[0]?.p || 1;
-  return (
-    <ul className="space-y-1">
-      {top.map(({ p, i }) => (
-        <li key={i}>
-          <button
-            type="button"
-            disabled={!onPick}
-            onClick={() => onPick?.(i)}
-            className="group flex w-full items-center gap-2 rounded text-left font-mono text-xs enabled:hover:bg-muted"
-            title={onPick ? `Append "${labels[i]}"` : undefined}
-          >
-            <span className="w-6 text-center text-sm">{labels[i]}</span>
-            <span className="relative h-4 flex-1 overflow-hidden rounded-sm bg-muted/50">
-              <span className="absolute inset-y-0 left-0 bg-primary transition-[width]" style={{ width: `${(p / best) * 100}%` }} />
-            </span>
-            <span className="w-12 text-right text-muted-foreground">{(p * 100).toFixed(1)}%</span>
-          </button>
-        </li>
-      ))}
-    </ul>
-  );
-}
-
 /* ---------- Embedding scatter ---------- */
 
 export function Scatter({ points }: { points: { x: number; y: number; label: string; hot: boolean }[] }) {
@@ -183,6 +118,9 @@ function paramBreakdown(c: ArchCfg, V: number) {
 
 type BlockId = "tok" | "pos" | "norm" | "attn" | "mlp" | "head";
 
+// same stage colours as the Explain map, so a block looks the same in both tabs
+const HUE: Record<BlockId, string> = { tok: "--mg-emb", pos: "--mg-emb", norm: "--muted-foreground", attn: "--mg-attn", mlp: "--mg-mlp", head: "--mg-out" };
+
 export function ArchDiagram({
   cfg, V, sel, onSel,
 }: { cfg: ArchCfg; V: number; sel: BlockId; onSel: (b: BlockId) => void }) {
@@ -190,7 +128,7 @@ export function ArchDiagram({
   const total = p.tok + p.pos + p.attn + p.mlp + p.head;
   const d = cfg.nEmbd / cfg.nHead;
   const info: Record<BlockId, { title: string; shape: string; params?: number; text: string }> = {
-    tok: { title: "Token embedding", shape: `${V} chars × ${cfg.nEmbd}`, params: p.tok, text: "Each character id looks up its own row of numbers. These numbers are learned: training slowly moves characters that behave alike (like vowels) close together. See the map under “Inside the model”." },
+    tok: { title: "Token embedding", shape: `${V} chars × ${cfg.nEmbd}`, params: p.tok, text: "Each character id looks up its own row of numbers. These numbers are learned: training slowly moves characters that behave alike (like vowels) close together. See them in the Explain tab." },
     pos: { title: "Position embedding", shape: `${cfg.blockSize} positions × ${cfg.nEmbd}`, params: p.pos, text: "A second learned row for each position, added to the token embedding, so the model can tell “first letter” from “fifth letter”. Block size is the longest sequence it can see." },
     norm: { title: "RMSNorm", shape: `${cfg.nEmbd} numbers`, text: "Rescales the vector to a stable size before each sub-layer. Without it, numbers drift and training becomes unstable. It has no learned parameters." },
     attn: { title: `Attention · ${cfg.nHead} heads × ${d} dims`, shape: `4 matrices of ${cfg.nEmbd}×${cfg.nEmbd} per layer`, params: p.attn, text: `Each head compares the current character's query with the key of every earlier character, turns the scores into weights (softmax), and mixes their values. ${cfg.nHead} head${cfg.nHead > 1 ? "s" : ""} can look for ${cfg.nHead > 1 ? "different things" : "one kind of pattern"} at once. This is the only place characters talk to each other. The output is added back to the input (a residual connection).` },
@@ -202,9 +140,10 @@ export function ArchDiagram({
       type="button"
       onClick={() => onSel(id)}
       aria-pressed={sel === id}
+      style={{ "--hue": `var(${HUE[id]})` } as React.CSSProperties}
       className={cn(
-        "w-full rounded-md border px-3 py-2 text-left text-sm transition-colors hover:border-primary/50",
-        sel === id ? "border-primary bg-primary/10" : "bg-card",
+        "w-full rounded-md border px-3 py-2 text-left text-sm transition-colors hover:border-[var(--hue)]",
+        sel === id ? "border-[var(--hue)] bg-[color-mix(in_oklab,var(--hue)_14%,var(--card))]" : "bg-card",
         className,
       )}
     >
@@ -213,6 +152,9 @@ export function ArchDiagram({
   );
   const Arrow = () => <div className="text-center text-xs leading-none text-muted-foreground" aria-hidden>↓</div>;
   const s = info[sel];
+  const segs: [string, number, string][] = [
+    ["embeddings", p.tok + p.pos, HUE.tok], ["attention", p.attn, HUE.attn], ["MLP", p.mlp, HUE.mlp], ["output", p.head, HUE.head],
+  ];
   return (
     <div className="grid gap-6 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
       <div className="space-y-1.5">
@@ -258,14 +200,17 @@ export function ArchDiagram({
           <p className="mb-1.5 font-mono text-xs text-muted-foreground">
             {total.toLocaleString()} parameters in total
           </p>
-          <div className="flex h-3 overflow-hidden rounded-sm">
-            {(["tok", "pos", "attn", "mlp", "head"] as const).map((k, i) => (
-              <span key={k} title={`${info[k].title}: ${p[k].toLocaleString()}`} style={{ width: `${(p[k] / total) * 100}%`, opacity: 1 - i * 0.16 }} className="bg-primary" />
+          <div className="flex h-3 gap-px overflow-hidden rounded-sm">
+            {segs.map(([label, n, hue]) => (
+              <span key={label} title={`${label}: ${n.toLocaleString()}`} style={{ width: `${(n / total) * 100}%`, background: `var(${hue})` }} />
             ))}
           </div>
-          <p className="mt-1 text-[11px] text-muted-foreground">
-            token · position · attention · MLP · output. For scale: GPT-3 has 175,000,000,000.
-          </p>
+          <ul className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground">
+            {segs.map(([label, , hue]) => (
+              <li key={label} className="inline-flex items-center gap-1.5"><i className="size-2.5 rounded-sm" style={{ background: `var(${hue})` }} />{label}</li>
+            ))}
+          </ul>
+          <p className="mt-1 text-xs text-muted-foreground">For scale: GPT-3 has 175,000,000,000.</p>
         </div>
       </div>
     </div>
