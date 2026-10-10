@@ -1,6 +1,7 @@
 import Footer from "@/components/Footer";
 import PageHeader, { PageGlow } from "@/components/PageHeader";
 import Explainer, { type Trace } from "@/components/microgpt/Explainer";
+import StoryLab from "@/components/microgpt/StoryLab";
 import {
   ArchDiagram, BOS, LossChart, Scatter,
   type ArchCfg, type Point, type RunLine,
@@ -120,7 +121,8 @@ export default function Microgpt() {
   const [temp, setTemp] = useState(0.8);
   const [batch, setBatch] = useState<string[]>([]);
   const [exampleIdx, setExampleIdx] = useState(0);
-  const [tab, setTab] = useState<"explain" | "train" | "compare">("explain");
+  const [tab, setTab] = useState<"explain" | "train" | "compare" | "story">("explain");
+  const [nameSeed, setNameSeed] = useState(0);
   const [view, setView] = useState<"trained" | "initial">("trained");
   // last finished trace + the tokens it was computed for. Kept while a newer one is in flight,
   // so the map updates in place instead of unmounting; cleared only when the model is rebuilt.
@@ -268,7 +270,7 @@ export default function Microgpt() {
           title="Build a GPT"
         />
 
-        {tab !== "explain" && (
+        {(tab === "train" || tab === "compare") && (
           <div className="rounded-lg border bg-card p-5 text-sm leading-relaxed">
             <p>
               A GPT learns one skill: given the letters so far, guess the next one. Show it <Chip>e</Chip><Chip>m</Chip><Chip>m</Chip> and
@@ -282,7 +284,7 @@ export default function Microgpt() {
         )}
 
         <div role="tablist" aria-label="Mode" className="flex gap-1 rounded-lg border bg-card p-1">
-          {([["explain", "Explain"], ["train", "Train"], ["compare", "Compare"]] as const).map(([k, l]) => (
+          {([["explain", "Explain"], ["train", "Train"], ["compare", "Compare"], ["story", "Real model"]] as const).map(([k, l]) => (
             <button key={k} role="tab" type="button" aria-selected={tab === k} onClick={() => setTab(k)}
               className={cn("flex-1 rounded-md px-3 py-2 text-sm font-medium transition-colors", tab === k ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground")}>
               {l}
@@ -324,6 +326,20 @@ export default function Microgpt() {
             <section className="mt-12 space-y-4 border-t pt-8">
               <h2 className="text-2xl font-semibold tracking-tight">What it learned</h2>
               <p className="-mt-2 max-w-2xl text-sm text-muted-foreground">Nobody told the model anything about names. These patterns appeared because they made its guesses better.</p>
+              <div className="rounded-md border bg-card p-4">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-sm font-semibold">What it read</h3>
+                  <Button size="sm" variant="ghost" onClick={() => setNameSeed((s) => s + 1)}>Shuffle</Button>
+                </div>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Its whole world: {docs.length.toLocaleString()} {DATASETS[dataKey].label.toLowerCase()}, one per line, read over and over. A few of them:
+                </p>
+                <ul className="mt-3 flex flex-wrap gap-1.5 font-mono text-sm">
+                  {Array.from({ length: Math.min(24, docs.length) }, (_, i) => docs[(i * 7919 + nameSeed * 104729) % docs.length]).map((d, i) => (
+                    <li key={i} className="rounded bg-muted/60 px-1.5">{d}</li>
+                  ))}
+                </ul>
+              </div>
               <div className="grid gap-4 md:grid-cols-2">
                 <div className="rounded-md border bg-card p-4">
                   <h3 className="text-sm font-semibold">How it sees each letter</h3>
@@ -517,6 +533,8 @@ export default function Microgpt() {
         </Section>
 
         </>)}
+
+        {tab === "story" && <StoryLab />}
 
         {tab === "compare" && (
         <Section title="Compare runs" lead="Each time you change the data or the size after training, the old run is saved here. Lower final loss means better guesses.">
