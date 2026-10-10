@@ -3,6 +3,7 @@ import { Slider } from "@/components/ui/slider";
 import { cn } from "@/lib/utils";
 import { animate } from "animejs";
 import { useEffect, useMemo, useRef, useState } from "react";
+import ModelMap from "./ModelMap";
 import { BOS, type ArchCfg } from "./viz";
 
 /* ---------- trace types (mirrors MicroGPT.trace) ---------- */
@@ -552,7 +553,9 @@ export default function Explainer({
   const [focus, setFocus] = useState<number | null>(null);
   const [hot, setHot] = useState<number | null>(null);
   const [tour, setTour] = useState<number | null>(null);
+  const [deep, setDeep] = useState(false);
   const canvas = useRef<HTMLDivElement>(null);
+  const detailRef = useRef<HTMLDivElement>(null);
   const flowAnim = useRef<{ pause: () => void } | null>(null);
   const lesson = tour != null ? LESSONS[tour] : null;
   // spotlight: lit zones get a ring, the rest dim. A lesson with no zones dims nothing.
@@ -591,6 +594,14 @@ export default function Explainer({
     return () => clearTimeout(id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tour]);
+
+  // opened block slides/fades in
+  useEffect(() => {
+    const el = detailRef.current;
+    if (!el || reduced()) return;
+    const a = animate(el, { opacity: [0, 1], translateY: [-12, 0], duration: 380, ease: "out(3)" });
+    return () => { a.pause(); };
+  }, [open?.layer, open?.kind]);
 
   const T = rows.length;
   const row = Math.min(focus ?? T - 1, T - 1);
@@ -670,17 +681,54 @@ export default function Explainer({
           {tour == null && <Button size="sm" className="ml-auto" onClick={() => setTour(0)}>Start guided tour</Button>}
         </div>
         <p className="mt-2 text-xs text-muted-foreground">
-          Characters become tokens (⏎ marks the start). The model predicts the next character at <i>every</i> position
-          at once; the last one is what it would write next.
+          Watch it work below. ⏎ marks the start.
           {trained === 0 && (
-            <> This model is <b>untrained</b>: random weights, so patterns look meaningless.{" "}
+            <> Untrained: random weights, so patterns look meaningless.{" "}
               <button type="button" className="text-primary underline underline-offset-2" onClick={onGoTrain}>Train it</button>, then return to see how the same input changes.</>
           )}
         </p>
         {!canExtend && <p className="mt-1 text-xs text-muted-foreground">Context limit reached ({arch.blockSize} tokens).</p>}
       </div>
 
-      {/* overview */}
+      {/* the whole model on one canvas */}
+      <ModelMap rows={rows} labels={labels} vocabLabels={vocabLabels} arch={arch} temp={temp}
+        open={open} setOpen={setOpen} head={head} setHead={setHead} focus={row} setFocus={setFocus} scale={scale} />
+
+      {/* detail */}
+      {open && (
+        <div id="zone-detail" ref={detailRef} className={cn("rounded-md border bg-card p-4 transition-opacity duration-300", zc("detail"))}>
+          {open.kind === "attn" ? (
+            <AttentionDetail layer={open.layer} rows={rows} labels={labels} arch={arch} head={Math.min(head, arch.nHead - 1)}
+              setHead={setHead} focus={row} setFocus={setFocus} scale={scale} spot={lesson?.open === "attn" ? lesson.spot ?? null : null} />
+          ) : (
+            <MlpDetail layer={open.layer} rows={rows} labels={labels} row={row} scale={scale} />
+          )}
+        </div>
+      )}
+
+      {/* output */}
+      <div id="zone-panel" className={cn("rounded-md transition-opacity duration-300", zc("panel"))}>
+        <OutputPanel
+          logits={last.logits}
+          finalVec={finalVec(last)}
+          vocabLabels={vocabLabels}
+          labelFor={labels[T - 1]}
+          temp={temp}
+          setTemp={setTemp}
+          resScale={scale.res}
+          logitScale={scale.logit}
+          onAppend={(i) => { setPrefix(prefix + vocabLabels[i]); setFocus(null); }}
+        />
+      </div>
+
+      <button type="button" onClick={() => setDeep((d) => !d)} aria-expanded={deep || tour != null}
+        className="w-full rounded-md border border-dashed px-4 py-3 text-left text-sm text-muted-foreground transition-colors hover:border-primary hover:text-foreground">
+        <b className="text-foreground">{deep || tour != null ? "▾" : "▸"} Deep dive: every number, row by row</b>
+        <span className="ml-2 text-xs">Raw vectors for each character at each step.</span>
+      </button>
+
+      {/* overview (deep dive) */}
+      {(deep || tour != null) && (
       <div id="zone-overview" ref={canvas}>
         <div className="mb-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
           <span>Each row is one character travelling through the model, left to right.</span>
@@ -745,33 +793,8 @@ export default function Explainer({
           Each stage adds to the vector via residual connections; the output scores are one number per possible next character.
         </p>
       </div>
-
-      {/* detail */}
-      {open && (
-        <div id="zone-detail" className={cn("rounded-md border bg-card p-4 transition-opacity duration-300", zc("detail"))}>
-          {open.kind === "attn" ? (
-            <AttentionDetail layer={open.layer} rows={rows} labels={labels} arch={arch} head={Math.min(head, arch.nHead - 1)}
-              setHead={setHead} focus={row} setFocus={setFocus} scale={scale} spot={lesson?.open === "attn" ? lesson.spot ?? null : null} />
-          ) : (
-            <MlpDetail layer={open.layer} rows={rows} labels={labels} row={row} scale={scale} />
-          )}
-        </div>
       )}
 
-      {/* output */}
-      <div id="zone-panel" className={cn("rounded-md transition-opacity duration-300", zc("panel"))}>
-      <OutputPanel
-        logits={last.logits}
-        finalVec={finalVec(last)}
-        vocabLabels={vocabLabels}
-        labelFor={labels[T - 1]}
-        temp={temp}
-        setTemp={setTemp}
-        resScale={scale.res}
-        logitScale={scale.logit}
-        onAppend={(i) => { setPrefix(prefix + vocabLabels[i]); setFocus(null); }}
-      />
-      </div>
       <p className="text-xs text-muted-foreground">
         Layout and teaching flow inspired by{" "}
         <a className="underline" href="https://poloclub.github.io/transformer-explainer/">Transformer Explainer</a> (Polo Club, MIT).

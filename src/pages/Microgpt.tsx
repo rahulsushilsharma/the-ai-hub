@@ -245,6 +245,11 @@ export default function Microgpt() {
           tags={["Learn", "Pure JS", "No GPU", "Runs in your tab"]}
         />
 
+        {tab === "explain" ? (
+          <p className="text-center text-sm text-muted-foreground">
+            A <b className="text-foreground">next-letter predictor</b> in your tab. Watch one think, then train it yourself.
+          </p>
+        ) : (
         <div className="rounded-lg border bg-card p-5 text-sm leading-relaxed">
           <p>
             <b>What is this?</b> A GPT is a <b>next-character predictor</b>. Show it <Chip>e</Chip><Chip>m</Chip><Chip>m</Chip> and
@@ -261,6 +266,7 @@ export default function Microgpt() {
             so nothing is hidden inside a library.
           </p>
         </div>
+        )}
 
         <div role="tablist" aria-label="Mode" className="flex gap-1 rounded-lg border bg-card p-1">
           {([["explain", "Explain"], ["train", "Train"], ["compare", "Compare"]] as const).map(([k, l]) => (
