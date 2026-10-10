@@ -1,6 +1,7 @@
 import { MicroGPT } from "@/lib/microgpt/microgpt";
 
 let model: MicroGPT | null = null;
+let base: MicroGPT | null = null; // untrained twin (same seed, same init) for step-0 comparisons
 let stopping = false;
 let training = false;
 let gen = 0; // bumped on init so an abandoned training loop exits and stays silent
@@ -18,6 +19,9 @@ self.onmessage = async ({ data }) => {
     const m = (model = new MicroGPT(payload.options));
     m.loadData(payload.text);
     const info = m.initParams();
+    base = new MicroGPT(payload.options);
+    base.loadData(payload.text);
+    base.initParams();
     post("ready", { ...info, chars: m.uchars, config: m.getConfig() });
     post("checkpoint", { step: 0, samples: sample(m, 6, 0.8) });
   } else if (type === "train" && model && !training) {
@@ -53,10 +57,10 @@ self.onmessage = async ({ data }) => {
   } else if (type === "inspect" && model) {
     post("inspect", { id: payload.id, rows: model.inspect(payload.tokens) });
   } else if (type === "trace" && model) {
-    post("trace", { id: payload.id, rows: model.trace(payload.tokens) });
+    post("trace", { id: payload.id, rows: (payload.baseline && base ? base : model).trace(payload.tokens) });
   } else if (type === "embeddings" && model) {
-    post("embeddings", model.getEmbeddings());
+    post("embeddings", (payload?.baseline && base ? base : model).getEmbeddings());
   } else if (type === "generate" && model) {
-    post("samples", sample(model, payload.count, payload.temperature));
+    post("samples", sample(payload.baseline && base ? base : model, payload.count, payload.temperature));
   }
 };

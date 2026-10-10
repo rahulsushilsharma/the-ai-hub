@@ -2,7 +2,7 @@ import Footer from "@/components/Footer";
 import PageHeader, { PageGlow } from "@/components/PageHeader";
 import Explainer, { type Trace } from "@/components/microgpt/Explainer";
 import {
-  ArchDiagram, BOS, Heatmap, LossChart, ProbBars, Scatter,
+  ArchDiagram, BOS, LossChart, Scatter,
   type ArchCfg, type Point, type RunLine,
 } from "@/components/microgpt/viz";
 import { Button } from "@/components/ui/button";
@@ -39,29 +39,17 @@ const RUN_COLORS = ["#e07a5f", "#3d9970", "#b36bd1", "#d4a017", "#2a9bb5", "#c05
 type Checkpoint = { step: number; samples: string[] };
 type Last = { step: number; loss: number; lr: number; doc: string; tokens: number[]; posLosses: number[] };
 type Run = { id: string; label: string; params: number; points: Point[]; finalLoss: number; samples: string[]; color: string; data: string };
-type Row = { logits: number[]; attention: number[][][] };
 
 const divisors = (n: number) => [1, 2, 4, 8].filter((h) => n % h === 0);
-const softmax = (logits: number[], t: number) => {
-  const m = Math.max(...logits);
-  const e = logits.map((l) => Math.exp((l - m) / t));
-  const s = e.reduce((a, b) => a + b, 0);
-  return e.map((v) => v / s);
-};
-const pick = (probs: number[]) => {
-  let r = Math.random();
-  for (let i = 0; i < probs.length; i++) if ((r -= probs[i]) <= 0) return i;
-  return probs.length - 1;
-};
 
 /* ---------- small UI pieces ---------- */
 
-function Section({ n, title, lead, children }: { n: number; title: string; lead: string; children: React.ReactNode }) {
+function Section({ n, title, lead, children }: { n?: number; title: string; lead: string; children: React.ReactNode }) {
   return (
-    <section className="space-y-4 border-t pt-8" aria-labelledby={`s${n}`}>
+    <section className="space-y-4 border-t pt-8" aria-labelledby={`s${n ?? title}`}>
       <div>
-        <p className="font-mono text-xs text-primary">STEP {n}</p>
-        <h2 id={`s${n}`} className="text-2xl font-semibold tracking-tight">{title}</h2>
+        {n != null && <p className="font-mono text-xs text-primary">STEP {n}</p>}
+        <h2 id={`s${n ?? title}`} className="text-2xl font-semibold tracking-tight">{title}</h2>
         <p className="mt-1 max-w-2xl text-sm leading-relaxed text-muted-foreground">{lead}</p>
       </div>
       {children}
@@ -95,7 +83,6 @@ function Stepper({ label, value, set, min, max, step = 1, disabled, hint }: {
 export default function Microgpt() {
   const worker = useRef<Worker | null>(null);
   const namesCache = useRef<string>("");
-  const inspectId = useRef(0);
 
   // configuration
   const [dataKey, setDataKey] = useState<DataKey>("names");
@@ -120,11 +107,10 @@ export default function Microgpt() {
   // inference
   const [prefix, setPrefix] = useState("");
   const [temp, setTemp] = useState(0.8);
-  const [rows, setRows] = useState<Row[]>([]);
-  const [layer, setLayer] = useState(0);
   const [batch, setBatch] = useState<string[]>([]);
   const [exampleIdx, setExampleIdx] = useState(0);
-  const [tab, setTab] = useState<"explain" | "lab">("explain");
+  const [tab, setTab] = useState<"explain" | "train" | "compare">("explain");
+  const [view, setView] = useState<"trained" | "initial">("trained");
   const [trace, setTrace] = useState<Trace[]>([]);
   const traceId = useRef(0);
 
@@ -156,15 +142,12 @@ export default function Microgpt() {
     w.onmessage = ({ data: { type, payload } }) => {
       if (type === "ready") {
         setChars(payload.chars); setNumParams(payload.numParams); setReady(true);
-        w.postMessage({ type: "embeddings" });
       } else if (type === "steps") {
         setPoints((p) => [...p, ...payload.batch]);
         if (payload.last) setLast(payload.last);
       } else if (type === "checkpoint") {
         setCheckpoints((c) => [...c, payload]);
-        w.postMessage({ type: "embeddings" });
       } else if (type === "done") setTraining(false);
-      else if (type === "inspect") { if (payload.id === inspectId.current) setRows(payload.rows); }
       else if (type === "trace") { if (payload.id === traceId.current) setTrace(payload.rows); }
       else if (type === "embeddings") setEmbeds(payload);
       else if (type === "samples") setBatch(payload);
@@ -208,27 +191,19 @@ export default function Microgpt() {
     [prefix, chars, arch.blockSize],
   );
   const lastCheckpoint = checkpoints.length ? checkpoints[checkpoints.length - 1].step : -1;
-  useEffect(() => {
-    if (!ready) return;
-    inspectId.current++;
-    worker.current?.postMessage({ type: "inspect", payload: { id: inspectId.current, tokens: prefixIds } });
-  }, [ready, prefixIds, lastCheckpoint, training]);
-
+  const baseline_ = view === "initial" && points.length > 0; // twin only differs once training has run
   useEffect(() => {
     if (!ready || tab !== "explain") return;
     traceId.current++;
-    worker.current?.postMessage({ type: "trace", payload: { id: traceId.current, tokens: prefixIds } });
-  }, [ready, tab, prefixIds, lastCheckpoint, training]);
+    worker.current?.postMessage({ type: "trace", payload: { id: traceId.current, tokens: prefixIds, baseline: baseline_ } });
+    worker.current?.postMessage({ type: "embeddings", payload: { baseline: baseline_ } });
+  }, [ready, tab, prefixIds, lastCheckpoint, training, baseline_]);
   const examples = useMemo(
     () => [...new Set(docs.slice(0, 8).map((d) => d.slice(0, Math.min(3, Math.max(1, d.length - 1)))))].slice(0, 5),
     [docs],
   );
 
-  const probs = useMemo(() => (rows.length ? softmax(rows[rows.length - 1].logits, temp) : []), [rows, temp]);
   const tokenLabels = prefixIds.map((i) => labels[i] ?? "?");
-  const lastRow = rows[rows.length - 1];
-  const heads = lastRow?.attention[0]?.length ?? 0;
-  const layerIdx = Math.min(layer, arch.nLayer - 1);
 
   const pts2d = useMemo(() => {
     if (embeds.length < 3) return [];
@@ -276,10 +251,10 @@ export default function Microgpt() {
             it should say <Chip tone="primary">a</Chip>. ChatGPT works the same way, just with billions of parameters and word
             pieces instead of letters. Here you build a miniature one, about 4,000 parameters, that learns to invent names.
           </p>
-          <ol className="mt-3 grid gap-2 font-mono text-xs text-muted-foreground sm:grid-cols-5">
-            {["Data", "Architecture", "Train", "Use it", "Compare"].map((s, i) => (
-              <li key={s}><span className="text-primary">{i + 1}</span> {s}</li>
-            ))}
+          <ol className="mt-3 grid gap-2 text-xs text-muted-foreground sm:grid-cols-3">
+            <li><b className="text-foreground">Explain</b> · follow a character through every step, with a guided tour</li>
+            <li><b className="text-foreground">Train</b> · choose data and architecture, then watch it learn</li>
+            <li><b className="text-foreground">Compare</b> · tweak, retrain and compare runs side by side</li>
           </ol>
           <p className="mt-3 text-muted-foreground">
             Everything runs on your CPU in this tab. Each multiplication is tracked by a hand-written autograd engine,
@@ -288,7 +263,7 @@ export default function Microgpt() {
         </div>
 
         <div role="tablist" aria-label="Mode" className="flex gap-1 rounded-lg border bg-card p-1">
-          {([["explain", "Explain · look inside the model"], ["lab", "Lab · build, train, compare"]] as const).map(([k, l]) => (
+          {([["explain", "Explain"], ["train", "Train"], ["compare", "Compare"]] as const).map(([k, l]) => (
             <button key={k} role="tab" type="button" aria-selected={tab === k} onClick={() => setTab(k)}
               className={cn("flex-1 rounded-md px-3 py-2 text-sm font-medium transition-colors", tab === k ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground")}>
               {l}
@@ -297,23 +272,61 @@ export default function Microgpt() {
         </div>
 
         {tab === "explain" && (
-          <Explainer
-            rows={trace.length === prefixIds.length ? trace : []}
-            labels={tokenLabels}
-            vocabLabels={labels}
-            arch={arch}
-            temp={temp}
-            setTemp={setTemp}
-            prefix={prefix}
-            setPrefix={(p) => setPrefix([...p].filter((c) => chars.includes(c)).join(""))}
-            examples={examples}
-            trained={trainedSteps}
-            canExtend={prefixIds.length < arch.blockSize}
-            onGoTrain={() => setTab("lab")}
-          />
+          <>
+            {trainedSteps > 0 && (
+              <div className="flex flex-wrap items-center gap-2 rounded-md border bg-card p-3 text-sm">
+                <span className="text-muted-foreground">Show the model as it is:</span>
+                {([["trained", `Trained (step ${trainedSteps})`], ["initial", "Untrained (step 0)"]] as const).map(([k, l]) => (
+                  <Button key={k} size="sm" variant={view === k ? "default" : "outline"} onClick={() => setView(k)}>{l}</Button>
+                ))}
+                <span className="text-xs text-muted-foreground">Same input, same architecture. Only the learned numbers differ.</span>
+              </div>
+            )}
+            <Explainer
+              rows={trace.length === prefixIds.length ? trace : []}
+              labels={tokenLabels}
+              vocabLabels={labels}
+              arch={arch}
+              temp={temp}
+              setTemp={setTemp}
+              prefix={prefix}
+              setPrefix={(p) => setPrefix([...p].filter((c) => chars.includes(c)).join(""))}
+              examples={examples}
+              trained={trainedSteps}
+              canExtend={prefixIds.length < arch.blockSize}
+              onGoTrain={() => setTab("train")}
+            />
+            <section className="space-y-4 border-t pt-8">
+              <h2 className="text-2xl font-semibold tracking-tight">What it learned</h2>
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="rounded-md border bg-card p-4">
+                  <h3 className="text-sm font-semibold">Character map</h3>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Each character’s {arch.nEmbd} embedding numbers squashed to 2D. Nobody told the model which letters are vowels
+                    (highlighted), yet after training similar letters tend to drift together. Untrained, it is random.
+                  </p>
+                  <div className="mt-3"><Scatter points={pts2d} /></div>
+                </div>
+                <div className="rounded-md border bg-card p-4">
+                  <h3 className="text-sm font-semibold">Write some names</h3>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Full generations at temperature {temp.toFixed(1)} from the {baseline_ ? "untrained" : "current"} model.
+                  </p>
+                  <Button className="mt-3" size="sm" disabled={!ready} onClick={() => worker.current?.postMessage({ type: "generate", payload: { count: 12, temperature: temp, baseline: baseline_ } })}>
+                    Generate 12 names
+                  </Button>
+                  {batch.length > 0 && (
+                    <ul className="mt-3 grid grid-cols-2 gap-2 font-mono text-sm sm:grid-cols-3">
+                      {batch.map((s, i) => <li key={i} className="rounded border px-2 py-1">{s || "∅"}</li>)}
+                    </ul>
+                  )}
+                </div>
+              </div>
+            </section>
+          </>
         )}
 
-        {tab === "lab" && (<>
+        {tab === "train" && (<>
         {/* 1 DATA */}
         <Section n={1} title="Data: what it learns from" lead="A model only knows what it is shown. It reads examples one at a time and learns which character tends to follow which.">
           <div className="grid gap-2 sm:grid-cols-3">
@@ -383,7 +396,7 @@ export default function Microgpt() {
               hint="How many characters back it can see." />
           </div>
           <ArchDiagram cfg={arch} V={V} sel={sel} onSel={setSel} />
-          <p className="text-xs text-muted-foreground">Changing any size builds a fresh, untrained model. Your previous run is kept in step 5 for comparison.</p>
+          <p className="text-xs text-muted-foreground">Changing any size builds a fresh, untrained model. Your previous run is kept in the Compare tab.</p>
         </Section>
 
         {/* 3 TRAIN */}
@@ -410,6 +423,9 @@ export default function Microgpt() {
               {!ready ? "Building model…" : training ? `Training… step ${last?.step ?? 0}` : trainedSteps ? `Train ${steps} more steps` : `Train ${steps} steps`}
             </Button>
             <Button variant="outline" disabled={!training} onClick={() => worker.current?.postMessage({ type: "stop" })}>Stop</Button>
+            {trainedSteps > 0 && !training && (
+              <Button variant="outline" onClick={() => setTab("explain")}>Look inside the trained model →</Button>
+            )}
             <span className="font-mono text-xs text-muted-foreground">
               {numParams.toLocaleString()} params · step {trainedSteps}{lossNow != null && ` · loss ${lossNow.toFixed(3)}`}
             </span>
@@ -458,94 +474,19 @@ export default function Microgpt() {
           </div>
         </Section>
 
-        {/* 4 USE */}
-        <Section n={4} title="Inference: using the model" lead="Generating text is just prediction in a loop: ask for the next character, pick one, append it, repeat. Type the start of a name and see exactly what the model believes comes next.">
-          <div className="grid gap-5 rounded-md border bg-card p-4 md:grid-cols-2">
-            <div className="space-y-4">
-              <div className="space-y-1.5">
-                <Label htmlFor="prefix">Start of a name (leave empty to start from scratch)</Label>
-                <div className="flex gap-2">
-                  <input id="prefix" value={prefix} maxLength={arch.blockSize - 1} spellCheck={false}
-                    onChange={(e) => setPrefix([...e.target.value].filter((c) => chars.includes(c)).join(""))}
-                    className="h-9 flex-1 rounded-md border bg-transparent px-3 font-mono text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring" placeholder="e.g. ma" />
-                  <Button variant="outline" onClick={() => setPrefix("")}>Clear</Button>
-                </div>
-                <div className="flex flex-wrap gap-1 pt-1">
-                  {tokenLabels.map((t, i) => <Chip key={i} tone={i === 0 ? "muted" : undefined}>{t}</Chip>)}
-                  <Chip tone="primary">?</Chip>
-                </div>
-              </div>
-              <Stepper label="Temperature" value={Number(temp.toFixed(1))} min={0.1} max={2} step={0.1} set={setTemp}
-                hint="Low: always the safest letter, repetitive. High: adventurous, and eventually gibberish. Watch the bars flatten." />
-              <div className="flex flex-wrap gap-2">
-                <Button disabled={!probs.length || prefixIds.length >= arch.blockSize}
-                  onClick={() => { const i = pick(probs); if (i < chars.length) setPrefix((p) => p + chars[i]); }}>
-                  Pick next letter
-                </Button>
-                <Button variant="outline" disabled={!ready} onClick={() => worker.current?.postMessage({ type: "generate", payload: { count: 12, temperature: temp } })}>
-                  Generate 12 names
-                </Button>
-              </div>
-            </div>
-            <div>
-              <h3 className="mb-2 text-sm font-semibold">Probability of the next character</h3>
-              {probs.length ? <ProbBars probs={probs} labels={labels} onPick={(i) => i < chars.length && prefixIds.length < arch.blockSize && setPrefix((p) => p + chars[i])} />
-                : <p className="text-sm text-muted-foreground">Waiting for the model…</p>}
-              <p className="mt-2 text-xs text-muted-foreground">
-                Click a bar to append it. {BOS} means “the name ends here”. {trainedSteps === 0 && "Untrained: nearly flat, it has no idea yet. Train, then come back."}
-              </p>
-            </div>
-          </div>
-          {batch.length > 0 && (
+        </>)}
+
+        {tab === "compare" && (
+        <Section title="Compare: tweak, retrain, learn" lead="Every time you change the architecture or data after training, the old run is saved here. Use the presets in the Train tab and compare final loss against model size.">
+          {(runs.length > 0 || trainedSteps > 0) && (
             <div className="rounded-md border bg-card p-4">
-              <h3 className="text-sm font-semibold">Generated at temperature {temp.toFixed(1)}</h3>
-              <ul className="mt-2 grid grid-cols-2 gap-2 font-mono text-sm sm:grid-cols-4">
-                {batch.map((s, i) => <li key={i} className="rounded border px-2 py-1">{s || "∅"}</li>)}
-              </ul>
+              <h3 className="mb-2 text-sm font-semibold">Loss curves</h3>
+              <LossChart runs={lines} baseline={baseline} />
             </div>
           )}
-
-          <div className="rounded-md border bg-card p-4">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <h3 className="text-sm font-semibold">Inside the model: attention</h3>
-              {arch.nLayer > 1 && (
-                <div className="flex gap-1">
-                  {Array.from({ length: arch.nLayer }, (_, l) => (
-                    <Button key={l} size="sm" variant={l === layerIdx ? "default" : "outline"} onClick={() => setLayer(l)}>Layer {l + 1}</Button>
-                  ))}
-                </div>
-              )}
-            </div>
-            <p className="mt-1 text-xs text-muted-foreground">
-              Each row is a character asking “which earlier characters should I pay attention to?”. Brighter means more.
-              Each head learns its own habit. Compare an untrained model with a trained one.
-            </p>
-            {tokenLabels.length < 2 && <p className="mt-3 text-sm text-muted-foreground">Type at least one letter above to see attention.</p>}
-            <div className="mt-3 flex flex-wrap gap-6">
-              {tokenLabels.length >= 2 && Array.from({ length: heads }, (_, h) => (
-                <div key={h}>
-                  <p className="mb-1 font-mono text-xs text-muted-foreground">head {h + 1}</p>
-                  <Heatmap labels={tokenLabels} rows={rows.map((r) => r.attention[layerIdx]?.[h] ?? [])} />
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <div className="rounded-md border bg-card p-4">
-            <h3 className="text-sm font-semibold">Inside the model: what it learned about characters</h3>
-            <p className="mt-1 text-xs text-muted-foreground">
-              Each character's embedding squashed from {arch.nEmbd} numbers down to 2D. Nobody told the model which letters
-              are vowels (highlighted), yet after training similar letters often drift together. Untrained, it is random.
-            </p>
-            <div className="mt-3"><Scatter points={pts2d} /></div>
-          </div>
-        </Section>
-
-        {/* 5 COMPARE */}
-        <Section n={5} title="Compare: tweak, retrain, learn" lead="Every time you change the architecture or data after training, the old run is saved here. Try the presets in step 2 and compare final loss against model size.">
           {runs.length === 0 && trainedSteps === 0 ? (
             <p className="rounded-md border border-dashed p-4 text-sm text-muted-foreground">
-              Train once, then change something in step 2 and train again. Runs will line up here.
+              Train once, then change something in the Train tab and train again. Runs will line up here.
             </p>
           ) : (
             <div className="overflow-x-auto rounded-md border bg-card">
@@ -578,8 +519,7 @@ export default function Microgpt() {
             Set the learning rate to 0.1 and watch training go unstable. Set context to 2 and see what it can no longer do.
           </div>
         </Section>
-
-        </>)}
+        )}
 
         <p className="border-t pt-6 text-center text-xs text-muted-foreground">
           Core engine by <a className="underline" href="https://github.com/kylemath/microgptJS">kylemath/microgptJS</a> (MIT),
