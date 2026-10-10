@@ -1,8 +1,9 @@
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
 import { cn } from "@/lib/utils";
-import { useMemo, useState } from "react";
-import { BOS, ProbBars, type ArchCfg } from "./viz";
+import { animate } from "animejs";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { BOS, type ArchCfg } from "./viz";
 
 /* ---------- trace types (mirrors MicroGPT.trace) ---------- */
 
@@ -223,6 +224,27 @@ function AttentionDetail({
 
 /* ---------- MLP detail ---------- */
 
+/** One bar per hidden neuron: above the line = fires, below = ReLU switches it off. */
+function NeuronBars({ pre }: { pre: number[] }) {
+  const m = maxAbs([pre]);
+  const H = 56;
+  return (
+    <svg viewBox={`0 0 ${pre.length * 4} ${H * 2}`} className="h-28 w-full max-w-xl" role="img"
+      aria-label={`${pre.filter((a) => a > 0).length} of ${pre.length} hidden neurons fire`} preserveAspectRatio="none">
+      <line x1="0" x2={pre.length * 4} y1={H} y2={H} className="stroke-border" />
+      {pre.map((a, i) => {
+        const h = (Math.abs(a) / m) * (H - 2);
+        return (
+          <rect key={i} x={i * 4 + 0.5} width="3" y={a > 0 ? H - h : H} height={Math.max(0.5, h)}
+            className={a > 0 ? "fill-primary" : "fill-muted-foreground/40"}>
+            <title>{`neuron ${i}: ${a.toFixed(2)}${a > 0 ? " (fires)" : " (zeroed by ReLU)"}`}</title>
+          </rect>
+        );
+      })}
+    </svg>
+  );
+}
+
 function MlpDetail({ layer, rows, labels, row, scale }: {
   layer: number; rows: Trace[]; labels: string[]; row: number; scale: { res: number; mlp: number };
 }) {
@@ -236,18 +258,194 @@ function MlpDetail({ layer, rows, labels, row, scale }: {
         number to zero (only <b>{active} of {l.mlpAct.length}</b> neurons fire here), then it is squeezed back and added
         to the input again. Attention gathered context; this step digests it.
       </Note>
+      <div>
+        <p className="font-mono text-[10px] text-muted-foreground">
+          {l.mlpPre.length} hidden neurons after W₁: bars above the line fire, bars below are zeroed by ReLU
+        </p>
+        <NeuronBars pre={l.mlpPre} />
+      </div>
       <div className="flex flex-wrap items-end gap-1">
         <div><p className="font-mono text-[10px] text-muted-foreground">normalised in</p><Strip v={l.norm2} scale={scale.res} /></div>
-        <Op>→ W₁ →</Op>
-        <div><p className="font-mono text-[10px] text-muted-foreground">{l.mlpPre.length} neurons</p><Strip v={l.mlpPre} scale={scale.mlp} width={220} /></div>
-        <Op>ReLU</Op>
-        <div><p className="font-mono text-[10px] text-muted-foreground">after ReLU</p><Strip v={l.mlpAct} scale={scale.mlp} width={220} /></div>
+        <Op>→ W₁ → ReLU →</Op>
+        <div><p className="font-mono text-[10px] text-muted-foreground">{l.mlpAct.length} neurons</p><Strip v={l.mlpAct} scale={scale.mlp} width={200} /></div>
         <Op>→ W₂ →</Op>
         <div><p className="font-mono text-[10px] text-muted-foreground">MLP out</p><Strip v={l.mlpOut} scale={scale.res} /></div>
         <Op>+</Op>
         <div><p className="font-mono text-[10px] text-muted-foreground">input</p><Strip v={l.res1} scale={scale.res} /></div>
         <Op>=</Op>
         <div><p className="font-mono text-[10px] text-primary">result</p><Strip v={l.res2} scale={scale.res} className="ring-1 ring-primary" /></div>
+      </div>
+    </div>
+  );
+}
+
+/* ---------- output + sampling ---------- */
+
+type Mode = "full" | "topk" | "topp";
+
+function softmaxT(logits: number[], t: number) {
+  const m = Math.max(...logits);
+  const e = logits.map((l) => Math.exp((l - m) / t));
+  const s = e.reduce((a, b) => a + b, 0);
+  return e.map((v) => v / s);
+}
+
+function OutputPanel({ logits, finalVec, vocabLabels, labelFor, temp, setTemp, resScale, logitScale, onAppend }: {
+  logits: number[]; finalVec: number[]; vocabLabels: string[]; labelFor: string;
+  temp: number; setTemp: (t: number) => void; resScale: number; logitScale: number;
+  onAppend: (tokenIdx: number) => void;
+}) {
+  const [mode, setMode] = useState<Mode>("full");
+  const [k, setK] = useState(5);
+  const [pCut, setPCut] = useState(0.9);
+  const [draw, setDraw] = useState<{ r: number; idx: number; done: boolean } | null>(null);
+  const marker = useRef<HTMLDivElement>(null);
+
+  const probs = useMemo(() => softmaxT(logits, temp), [logits, temp]);
+  const order = useMemo(() => probs.map((_, i) => i).sort((a, b) => probs[b] - probs[a]), [probs]);
+  const kept = useMemo(() => {
+    const keep = new Array<boolean>(probs.length).fill(mode === "full");
+    if (mode === "topk") order.slice(0, k).forEach((i) => (keep[i] = true));
+    if (mode === "topp") {
+      let cum = 0;
+      for (const i of order) {
+        keep[i] = true;
+        cum += probs[i];
+        if (cum >= pCut) break; // the token that crosses the threshold is included
+      }
+    }
+    return keep;
+  }, [mode, k, pCut, order, probs]);
+  const q = useMemo(() => {
+    const sum = probs.reduce((s, p, i) => s + (kept[i] ? p : 0), 0) || 1;
+    return probs.map((p, i) => (kept[i] ? p / sum : 0));
+  }, [probs, kept]);
+  const keptOrder = order.filter((i) => kept[i]);
+
+  // any change to the distribution invalidates the last draw
+  useEffect(() => setDraw(null), [logits, temp, mode, k, pCut]);
+
+  const spin = () => {
+    const r = Math.random();
+    let acc = 0, idx = keptOrder[keptOrder.length - 1];
+    for (const i of keptOrder) { acc += q[i]; if (r <= acc) { idx = i; break; } }
+    setDraw({ r, idx, done: false });
+  };
+  useEffect(() => {
+    if (!draw || draw.done) return;
+    const el = marker.current;
+    const finish = () => setDraw((d) => (d ? { ...d, done: true } : d));
+    if (!el || window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      if (el) el.style.left = `${draw.r * 100}%`;
+      finish();
+      return;
+    }
+    const a = animate(el, { left: ["0%", `${draw.r * 100}%`], duration: 1100, ease: "out(3)", onComplete: finish });
+    return () => { a.pause(); };
+  }, [draw]);
+
+  const shown = order.slice(0, 10);
+  const shades = ["var(--primary)", "color-mix(in oklab, var(--primary) 60%, var(--card))"];
+
+  return (
+    <div className="rounded-md border bg-card p-4">
+      <h3 className="text-sm font-semibold">Output: from scores to the next character (after “{labelFor}”)</h3>
+      <div className="mt-3 grid gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
+        <div className="space-y-5 text-sm leading-relaxed text-muted-foreground">
+          <div className="space-y-2">
+            <p><b className="text-foreground">① Scores.</b> The final vector becomes one score (logit) per character.</p>
+            <div className="flex items-center gap-2"><Strip v={finalVec} scale={resScale} /><Op>→</Op><Strip v={logits} scale={logitScale} width={140} /></div>
+          </div>
+          <div className="space-y-2">
+            <p className="flex justify-between gap-2"><span><b className="text-foreground">② Temperature + softmax.</b> Scores ÷ T, then to percentages.</span><span className="font-mono text-primary">T={temp.toFixed(1)}</span></p>
+            <Slider min={0.1} max={2} step={0.1} value={[temp]} onValueChange={([v]) => setTemp(v)} aria-label="Temperature" />
+            <p className="text-xs">Low T: the favourite takes almost everything. High T: probabilities even out.</p>
+          </div>
+          <div className="space-y-2">
+            <p><b className="text-foreground">③ Filter.</b> Optionally drop unlikely characters, then renormalise.</p>
+            <div className="flex flex-wrap gap-1" role="group" aria-label="Sampling filter">
+              {([["full", "None"], ["topk", "Top-k"], ["topp", "Top-p"]] as const).map(([m, l]) => (
+                <Button key={m} size="sm" variant={mode === m ? "default" : "outline"} onClick={() => setMode(m)}>{l}</Button>
+              ))}
+            </div>
+            {mode === "topk" && (
+              <div className="space-y-1">
+                <p className="flex justify-between text-xs"><span>Keep only the k most likely</span><span className="font-mono text-primary">k={k}</span></p>
+                <Slider min={1} max={Math.max(2, probs.length)} step={1} value={[k]} onValueChange={([v]) => setK(v)} aria-label="Top-k" />
+              </div>
+            )}
+            {mode === "topp" && (
+              <div className="space-y-1">
+                <p className="flex justify-between text-xs"><span>Keep the smallest set adding up to p</span><span className="font-mono text-primary">p={pCut.toFixed(2)}</span></p>
+                <Slider min={0.05} max={1} step={0.05} value={[pCut]} onValueChange={([v]) => setPCut(v)} aria-label="Top-p" />
+              </div>
+            )}
+            <p className="text-xs">{keptOrder.length} of {probs.length} characters can still be picked.</p>
+          </div>
+        </div>
+
+        <div className="space-y-5">
+          <div>
+            <div className="mb-1 grid grid-cols-[1.5rem_1fr_1fr_1fr] gap-2 font-mono text-[10px] text-muted-foreground">
+              <span /><span>① score</span><span>② probability</span><span>③ after filter</span>
+            </div>
+            <ul className="space-y-1">
+              {shown.map((i) => (
+                <li key={i} className={cn("grid grid-cols-[1.5rem_1fr_1fr_1fr] items-center gap-2 rounded font-mono text-xs", !kept[i] && "opacity-50", draw?.done && draw.idx === i && "bg-primary/10")}>
+                  <span className="text-center text-sm">{vocabLabels[i]}</span>
+                  <span className="flex items-center gap-1" title={`score ${logits[i].toFixed(2)}`}>
+                    <span className="relative h-3 flex-1 rounded-sm bg-muted/50">
+                      <span className={cn("absolute inset-y-0 rounded-sm", logits[i] >= 0 ? "bg-foreground/60" : "bg-foreground/25")}
+                        style={logits[i] >= 0 ? { left: "50%", width: `${(logits[i] / logitScale) * 50}%` } : { right: "50%", width: `${(-logits[i] / logitScale) * 50}%` }} />
+                    </span>
+                    <span className="w-9 text-right text-muted-foreground">{logits[i].toFixed(1)}</span>
+                  </span>
+                  <span className="flex items-center gap-1">
+                    <span className="h-3 flex-1 rounded-sm bg-muted/50"><span className="block h-full rounded-sm bg-primary/50 transition-[width] duration-300" style={{ width: `${probs[i] * 100}%` }} /></span>
+                    <span className="w-10 text-right text-muted-foreground">{(probs[i] * 100).toFixed(1)}%</span>
+                  </span>
+                  <span className="flex items-center gap-1">
+                    <span className="h-3 flex-1 rounded-sm bg-muted/50"><span className="block h-full rounded-sm bg-primary transition-[width] duration-300" style={{ width: `${q[i] * 100}%` }} /></span>
+                    <span className="w-10 text-right">{kept[i] ? `${(q[i] * 100).toFixed(1)}%` : "out"}</span>
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          <div className="space-y-2">
+            <p className="text-sm text-muted-foreground"><b className="text-foreground">④ Pick.</b> A random number between 0 and 100% lands in one character’s slice; that character is chosen. Likelier characters own wider slices.</p>
+            <div className="relative h-9 rounded-md border bg-muted/30">
+              <div className="flex h-full overflow-hidden rounded-md">
+                {keptOrder.filter((i) => q[i] > 0.001).map((i, n) => (
+                  <div key={i} title={`${vocabLabels[i]} ${(q[i] * 100).toFixed(1)}%`}
+                    className={cn("grid h-full place-items-center border-r border-card font-mono text-xs text-primary-foreground", draw?.done && draw.idx === i && "ring-2 ring-inset ring-foreground")}
+                    style={{ width: `${q[i] * 100}%`, background: shades[n % 2] }}>
+                    {q[i] > 0.04 ? vocabLabels[i] : ""}
+                  </div>
+                ))}
+              </div>
+              {draw && (
+                <div ref={marker} className="pointer-events-none absolute -top-2 -bottom-2 w-0.5 bg-foreground" style={{ left: "0%" }} aria-hidden>
+                  <span className="absolute -top-1 left-1/2 size-2.5 -translate-x-1/2 rotate-45 bg-foreground" />
+                </div>
+              )}
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <Button size="sm" onClick={spin}>Spin</Button>
+              {draw?.done && (
+                <>
+                  <span className="font-mono text-sm" aria-live="polite">picked <b>{vocabLabels[draw.idx]}</b> ({(q[draw.idx] * 100).toFixed(0)}% chance)</span>
+                  {draw.idx < vocabLabels.length - 1 ? (
+                    <Button size="sm" variant="outline" onClick={() => onAppend(draw.idx)}>Append “{vocabLabels[draw.idx]}” and continue</Button>
+                  ) : (
+                    <span className="text-xs text-muted-foreground">⏎ means the name ends here.</span>
+                  )}
+                </>
+              )}
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );
@@ -290,12 +488,6 @@ export default function Explainer({
 
   const last = rows[T - 1];
   const finalVec = (r: Trace) => r.layers[r.layers.length - 1].res2;
-  const probs = (() => {
-    const m = Math.max(...last.logits);
-    const e = last.logits.map((l) => Math.exp((l - m) / temp));
-    const s = e.reduce((a, b) => a + b, 0);
-    return e.map((v) => v / s);
-  })();
   const w = arch.nLayer > 2 ? 80 : 104;
   const top = (r: Trace) => {
     const m = Math.max(...r.logits);
@@ -411,28 +603,17 @@ export default function Explainer({
       )}
 
       {/* output */}
-      <div className="rounded-md border bg-card p-4">
-        <h3 className="text-sm font-semibold">Output: scores → probabilities (for the last character “{labels[T - 1]}”)</h3>
-        <div className="mt-3 grid gap-6 md:grid-cols-2">
-          <div className="space-y-3 text-sm leading-relaxed text-muted-foreground">
-            <p>
-              The final vector is turned into one <b>score (logit)</b> per possible next character. Divide the scores by
-              the <b>temperature</b> and apply <b>softmax</b> to get probabilities that sum to 100%.
-            </p>
-            <div className="flex items-center gap-3">
-              <Strip v={finalVec(last)} scale={scale.res} />
-              <Op>→</Op>
-              <Strip v={last.logits} scale={scale.logit} width={140} />
-            </div>
-            <div className="space-y-2">
-              <p className="flex justify-between font-medium text-foreground"><span>Temperature</span><span className="font-mono text-primary">{temp.toFixed(1)}</span></p>
-              <Slider min={0.1} max={2} step={0.1} value={[temp]} onValueChange={([v]) => setTemp(v)} aria-label="Temperature" />
-              <p className="text-xs">Low: the favourite gets nearly everything. High: probabilities even out and picks get riskier.</p>
-            </div>
-          </div>
-          <ProbBars probs={probs} labels={vocabLabels} />
-        </div>
-      </div>
+      <OutputPanel
+        logits={last.logits}
+        finalVec={finalVec(last)}
+        vocabLabels={vocabLabels}
+        labelFor={labels[T - 1]}
+        temp={temp}
+        setTemp={setTemp}
+        resScale={scale.res}
+        logitScale={scale.logit}
+        onAppend={(i) => { setPrefix(prefix + vocabLabels[i]); setFocus(null); }}
+      />
       <p className="text-xs text-muted-foreground">
         Layout and teaching flow inspired by{" "}
         <a className="underline" href="https://poloclub.github.io/transformer-explainer/">Transformer Explainer</a> (Polo Club, MIT).
