@@ -52,6 +52,8 @@ self.onmessage = async ({ data }) => {
     stopping = true;
   } else if (type === "inspect" && model) {
     post("inspect", { id: payload.id, rows: model.inspect(payload.tokens) });
+  } else if (type === "trace" && model) {
+    post("trace", { id: payload.id, rows: model.trace(payload.tokens) });
   } else if (type === "embeddings" && model) {
     post("embeddings", model.getEmbeddings());
   } else if (type === "generate" && model) {

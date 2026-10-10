@@ -1,5 +1,6 @@
 import Footer from "@/components/Footer";
 import PageHeader, { PageGlow } from "@/components/PageHeader";
+import Explainer, { type Trace } from "@/components/microgpt/Explainer";
 import {
   ArchDiagram, BOS, Heatmap, LossChart, ProbBars, Scatter,
   type ArchCfg, type Point, type RunLine,
@@ -123,6 +124,9 @@ export default function Microgpt() {
   const [layer, setLayer] = useState(0);
   const [batch, setBatch] = useState<string[]>([]);
   const [exampleIdx, setExampleIdx] = useState(0);
+  const [tab, setTab] = useState<"explain" | "lab">("explain");
+  const [trace, setTrace] = useState<Trace[]>([]);
+  const traceId = useRef(0);
 
   const docs = useMemo(() => text.split("\n").map((l) => l.trim()).filter(Boolean), [text]);
   const vocab = useMemo(() => [...new Set(docs.join(""))].sort(), [docs]);
@@ -161,6 +165,7 @@ export default function Microgpt() {
         w.postMessage({ type: "embeddings" });
       } else if (type === "done") setTraining(false);
       else if (type === "inspect") { if (payload.id === inspectId.current) setRows(payload.rows); }
+      else if (type === "trace") { if (payload.id === traceId.current) setTrace(payload.rows); }
       else if (type === "embeddings") setEmbeds(payload);
       else if (type === "samples") setBatch(payload);
     };
@@ -208,6 +213,16 @@ export default function Microgpt() {
     inspectId.current++;
     worker.current?.postMessage({ type: "inspect", payload: { id: inspectId.current, tokens: prefixIds } });
   }, [ready, prefixIds, lastCheckpoint, training]);
+
+  useEffect(() => {
+    if (!ready || tab !== "explain") return;
+    traceId.current++;
+    worker.current?.postMessage({ type: "trace", payload: { id: traceId.current, tokens: prefixIds } });
+  }, [ready, tab, prefixIds, lastCheckpoint, training]);
+  const examples = useMemo(
+    () => [...new Set(docs.slice(0, 8).map((d) => d.slice(0, Math.min(3, Math.max(1, d.length - 1)))))].slice(0, 5),
+    [docs],
+  );
 
   const probs = useMemo(() => (rows.length ? softmax(rows[rows.length - 1].logits, temp) : []), [rows, temp]);
   const tokenLabels = prefixIds.map((i) => labels[i] ?? "?");
@@ -272,6 +287,33 @@ export default function Microgpt() {
           </p>
         </div>
 
+        <div role="tablist" aria-label="Mode" className="flex gap-1 rounded-lg border bg-card p-1">
+          {([["explain", "Explain · look inside the model"], ["lab", "Lab · build, train, compare"]] as const).map(([k, l]) => (
+            <button key={k} role="tab" type="button" aria-selected={tab === k} onClick={() => setTab(k)}
+              className={cn("flex-1 rounded-md px-3 py-2 text-sm font-medium transition-colors", tab === k ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground")}>
+              {l}
+            </button>
+          ))}
+        </div>
+
+        {tab === "explain" && (
+          <Explainer
+            rows={trace.length === prefixIds.length ? trace : []}
+            labels={tokenLabels}
+            vocabLabels={labels}
+            arch={arch}
+            temp={temp}
+            setTemp={setTemp}
+            prefix={prefix}
+            setPrefix={(p) => setPrefix([...p].filter((c) => chars.includes(c)).join(""))}
+            examples={examples}
+            trained={trainedSteps}
+            canExtend={prefixIds.length < arch.blockSize}
+            onGoTrain={() => setTab("lab")}
+          />
+        )}
+
+        {tab === "lab" && (<>
         {/* 1 DATA */}
         <Section n={1} title="Data: what it learns from" lead="A model only knows what it is shown. It reads examples one at a time and learns which character tends to follow which.">
           <div className="grid gap-2 sm:grid-cols-3">
@@ -536,6 +578,8 @@ export default function Microgpt() {
             Set the learning rate to 0.1 and watch training go unstable. Set context to 2 and see what it can no longer do.
           </div>
         </Section>
+
+        </>)}
 
         <p className="border-t pt-6 text-center text-xs text-muted-foreground">
           Core engine by <a className="underline" href="https://github.com/kylemath/microgptJS">kylemath/microgptJS</a> (MIT),

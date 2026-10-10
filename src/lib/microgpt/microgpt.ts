@@ -192,8 +192,10 @@ function rmsnorm(x) {
 }
 
 // Python: def gpt(token_id, pos_id, keys, values):
-function gpt(tokenId, posId, keys, values, stateDict, config) {
+// `tr` (optional, added) collects every intermediate activation for the Explain view.
+function gpt(tokenId, posId, keys, values, stateDict, config, tr = null) {
   const { nEmbd, nHead, nLayer, headDim } = config;
+  const d = (v) => v.map((a) => a.data);
 
   // Python: tok_emb = state_dict['wte'][token_id]
   let tokEmb = stateDict.wte[tokenId];
@@ -201,7 +203,9 @@ function gpt(tokenId, posId, keys, values, stateDict, config) {
   let posEmb = stateDict.wpe[posId];
   // Python: x = [t + p for t, p in zip(tok_emb, pos_emb)]
   let x = tokEmb.map((t, i) => t.add(posEmb[i]));
+  if (tr) { tr.tokEmb = d(tokEmb); tr.posEmb = d(posEmb); tr.embSum = d(x); }
   x = rmsnorm(x);
+  if (tr) { tr.x0 = d(x); tr.layers = []; }
 
   // Collect visualization data
   const vizData = {
@@ -211,6 +215,7 @@ function gpt(tokenId, posId, keys, values, stateDict, config) {
   };
 
   for (let li = 0; li < nLayer; li++) {
+    const L = {};
     // 1) Multi-head attention block
     const xResidual = x;
     x = rmsnorm(x);
@@ -219,6 +224,7 @@ function gpt(tokenId, posId, keys, values, stateDict, config) {
     const v = linear(x, stateDict[`layer${li}.attn_wv`]);
     keys[li].push(k);
     values[li].push(v);
+    if (tr) { L.xIn = d(xResidual); L.norm1 = d(x); L.q = d(q); L.k = d(k); L.v = d(v); L.heads = []; }
 
     const xAttn = [];
     const layerAttnWeights = [];
@@ -245,23 +251,32 @@ function gpt(tokenId, posId, keys, values, stateDict, config) {
         );
       }
       xAttn.push(...headOut);
+      if (tr) L.heads.push({ scores: d(attnLogits), weights: d(attnWeights), out: d(headOut) });
     }
     vizData.attentionWeights.push(layerAttnWeights);
 
     x = linear(xAttn, stateDict[`layer${li}.attn_wo`]);
+    if (tr) { L.concat = d(xAttn); L.attnOut = d(x); }
     x = x.map((a, i) => a.add(xResidual[i]));
+    if (tr) L.res1 = d(x);
 
     // 2) MLP block
     const xResidual2 = x;
     x = rmsnorm(x);
+    if (tr) L.norm2 = d(x);
     x = linear(x, stateDict[`layer${li}.mlp_fc1`]);
     vizData.mlpActivations.push(x.map(v => v.data));
+    if (tr) L.mlpPre = d(x);
     x = x.map((xi) => xi.relu());
+    if (tr) L.mlpAct = d(x);
     x = linear(x, stateDict[`layer${li}.mlp_fc2`]);
+    if (tr) L.mlpOut = d(x);
     x = x.map((a, i) => a.add(xResidual2[i]));
+    if (tr) { L.res2 = d(x); tr.layers.push(L); }
   }
 
   const logits = linear(x, stateDict.lm_head);
+  if (tr) tr.logits = d(logits);
   return { logits, vizData };
 }
 
@@ -432,6 +447,18 @@ export class MicroGPT {
       posLosses: losses.map((l) => l.data), // added: loss of each next-char prediction
       vizData: stepVizData,
     };
+  }
+
+  // Added: full activation trace per position (see gpt's `tr`) for the Explain view.
+  trace(tokens) {
+    const { nLayer } = this.config;
+    const keys = Array.from({ length: nLayer }, () => []);
+    const vals = Array.from({ length: nLayer }, () => []);
+    return tokens.map((t, pos) => {
+      const tr = {};
+      gpt(t, pos, keys, vals, this.stateDict, this.config, tr);
+      return tr;
+    });
   }
 
   // Added: run the model over a token prefix without training; returns, per position,
