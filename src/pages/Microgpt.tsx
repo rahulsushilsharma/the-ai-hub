@@ -52,8 +52,9 @@ function Section({ n, title, lead, children }: { n?: number; title: string; lead
   return (
     <section className="space-y-4 border-t pt-8" aria-labelledby={`s${n ?? title}`}>
       <div>
-        {n != null && <p className="font-mono text-xs text-primary">STEP {n}</p>}
-        <h2 id={`s${n ?? title}`} className="text-2xl font-semibold tracking-tight">{title}</h2>
+        <h2 id={`s${n ?? title}`} className="text-2xl font-semibold tracking-tight">
+          {n != null && <span className="mr-2 text-muted-foreground">{n}.</span>}{title}
+        </h2>
         <p className="mt-1 max-w-2xl text-sm leading-relaxed text-muted-foreground">{lead}</p>
       </div>
       {children}
@@ -121,7 +122,9 @@ export default function Microgpt() {
   const [exampleIdx, setExampleIdx] = useState(0);
   const [tab, setTab] = useState<"explain" | "train" | "compare">("explain");
   const [view, setView] = useState<"trained" | "initial">("trained");
-  const [trace, setTrace] = useState<Trace[]>([]);
+  // last finished trace + the tokens it was computed for. Kept while a newer one is in flight,
+  // so the map updates in place instead of unmounting; cleared only when the model is rebuilt.
+  const [shown, setShown] = useState<{ rows: Trace[]; tokens: number[] } | null>(null);
   const traceId = useRef(0);
 
   const docs = useMemo(() => text.split("\n").map((l) => l.trim()).filter(Boolean), [text]);
@@ -160,7 +163,7 @@ export default function Microgpt() {
       } else if (type === "checkpoint") {
         setCheckpoints((c) => [...c, payload]);
       } else if (type === "done") setTraining(false);
-      else if (type === "trace") { if (payload.id === traceId.current) setTrace(payload.rows); }
+      else if (type === "trace") { if (payload.id === traceId.current) setShown({ rows: payload.rows, tokens: payload.tokens }); }
       else if (type === "embeddings") setEmbeds(payload);
       else if (type === "samples") setBatch(payload);
     };
@@ -190,7 +193,7 @@ export default function Microgpt() {
           },
         ]);
       }
-      setPoints([]); setLast(null); setCheckpoints([]); setBatch([]); setTraining(false); setReady(false); setPretrained(null);
+      setPoints([]); setLast(null); setCheckpoints([]); setBatch([]); setTraining(false); setReady(false); setPretrained(null); setShown(null);
       // names + Default preset: start from the shipped checkpoint (scripts/train-microgpt.ts)
       const wantPre = usePre.current;
       usePre.current = true;
@@ -224,7 +227,8 @@ export default function Microgpt() {
     [docs],
   );
 
-  const tokenLabels = prefixIds.map((i) => labels[i] ?? "?");
+  const tokenLabels = (shown?.tokens ?? []).map((i) => labels[i] ?? "?");
+  const tracePending = !shown || shown.tokens.join() !== prefixIds.join();
 
   const pts2d = useMemo(() => {
     if (embeds.length < 3) return [];
@@ -262,31 +266,21 @@ export default function Microgpt() {
         <PageHeader
           icon={Brain}
           title="Build a GPT"
-          blurb="A hands-on lab: see how a language model is built, trained and used, then change it and watch what happens."
-          tags={["Learn", "Pure JS", "No GPU", "Runs in your tab"]}
+          blurb="A real, tiny GPT running in your browser. Watch it guess the next letter of a name, open every step to see why, then train your own."
+          tags={["Learn", "No GPU", "No ML library", "Runs in your browser"]}
         />
 
-        {tab === "explain" ? (
-          <p className="text-center text-sm text-muted-foreground">
-            A <b className="text-foreground">next-letter predictor</b> in your tab. Watch one think, then train it yourself.
-          </p>
-        ) : (
-        <div className="rounded-lg border bg-card p-5 text-sm leading-relaxed">
-          <p>
-            <b>What is this?</b> A GPT is a <b>next-character predictor</b>. Show it <Chip>e</Chip><Chip>m</Chip><Chip>m</Chip> and
-            it should say <Chip tone="primary">a</Chip>. ChatGPT works the same way, just with billions of parameters and word
-            pieces instead of letters. Here you build a miniature one, about 4,000 parameters, that learns to invent names.
-          </p>
-          <ol className="mt-3 grid gap-2 text-xs text-muted-foreground sm:grid-cols-3">
-            <li><b className="text-foreground">Explain</b> · follow a character through every step, with a guided tour</li>
-            <li><b className="text-foreground">Train</b> · choose data and architecture, then watch it learn</li>
-            <li><b className="text-foreground">Compare</b> · tweak, retrain and compare runs side by side</li>
-          </ol>
-          <p className="mt-3 text-muted-foreground">
-            Everything runs on your CPU in this tab. The forward and backward passes are written by hand over plain arrays,
-            so nothing is hidden inside a library.
-          </p>
-        </div>
+        {tab !== "explain" && (
+          <div className="rounded-lg border bg-card p-5 text-sm leading-relaxed">
+            <p>
+              A GPT learns one skill: given the letters so far, guess the next one. Show it <Chip>e</Chip><Chip>m</Chip><Chip>m</Chip> and
+              a trained model says <Chip tone="primary">a</Chip>. Here you choose what it reads, how big it is and how long it
+              studies, then watch the guesses improve.
+            </p>
+            <p className="mt-3 text-muted-foreground">
+              Everything runs on your computer, in this tab. The maths is written out by hand, so nothing is hidden inside a library.
+            </p>
+          </div>
         )}
 
         <div role="tablist" aria-label="Mode" className="flex gap-1 rounded-lg border bg-card p-1">
@@ -300,19 +294,11 @@ export default function Microgpt() {
 
         {tab === "explain" && (
           <>
-            {trainedSteps > 0 && (
-              <div className="flex flex-wrap items-center gap-2 rounded-md border bg-card p-3 text-sm">
-                <span className="text-muted-foreground">Show the model as it is:</span>
-                {([["trained", `Trained (step ${trainedSteps})`], ["initial", "Untrained (step 0)"]] as const).map(([k, l]) => (
-                  <Button key={k} size="sm" variant={view === k ? "default" : "outline"} onClick={() => setView(k)}>{l}</Button>
-                ))}
-                <span className="text-xs text-muted-foreground">Same input, same architecture. Only the learned numbers differ.</span>
-              </div>
-            )}
             {/* full-bleed: the model map needs the width to fit without sideways scrolling */}
             <div className="relative left-1/2 w-[min(80rem,calc(100vw-2rem))] -translate-x-1/2">
             <Explainer
-              rows={trace.length === prefixIds.length ? trace : []}
+              rows={shown?.rows ?? []}
+              busy={tracePending}
               labels={tokenLabels}
               vocabLabels={labels}
               arch={arch}
@@ -324,23 +310,36 @@ export default function Microgpt() {
               trained={trainedSteps}
               canExtend={prefixIds.length < arch.blockSize}
               onGoTrain={() => setTab("train")}
+              numParams={numParams}
+              nDocs={docs.length}
+              viewSwitch={trainedSteps > 0 && (
+                <div className="flex items-center gap-1 rounded-lg border bg-card p-1 text-sm" role="group" aria-label="Which model to show">
+                  {([["trained", `Trained (${trainedSteps.toLocaleString()} steps)`], ["initial", "Untrained (random)"]] as const).map(([k, l]) => (
+                    <button key={k} type="button" aria-pressed={view === k} onClick={() => setView(k)}
+                      className={cn("rounded-md px-3 py-1 transition-colors", view === k ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground")}>
+                      {l}
+                    </button>
+                  ))}
+                </div>
+              )}
             />
-            </div>
-            <section className="space-y-4 border-t pt-8">
+            <section className="mt-12 space-y-4 border-t pt-8">
               <h2 className="text-2xl font-semibold tracking-tight">What it learned</h2>
+              <p className="-mt-2 max-w-2xl text-sm text-muted-foreground">Nobody told the model anything about names. These patterns appeared because they made its guesses better.</p>
               <div className="grid gap-4 md:grid-cols-2">
                 <div className="rounded-md border bg-card p-4">
-                  <h3 className="text-sm font-semibold">Character map</h3>
+                  <h3 className="text-sm font-semibold">How it sees each letter</h3>
                   <p className="mt-1 text-xs text-muted-foreground">
-                    Each character’s {arch.nEmbd} embedding numbers squashed to 2D. Nobody told the model which letters are vowels
-                    (highlighted), yet after training similar letters tend to drift together. Untrained, it is random.
+                    Each letter’s {arch.nEmbd} numbers, flattened onto a page. Letters the model treats alike end up close together.
+                    Vowels are highlighted: after training they tend to cluster, though nobody told it what a vowel is. Untrained, the layout is random.
                   </p>
                   <div className="mt-3"><Scatter points={pts2d} /></div>
                 </div>
                 <div className="rounded-md border bg-card p-4">
-                  <h3 className="text-sm font-semibold">Write some names</h3>
+                  <h3 className="text-sm font-semibold">Names it invents</h3>
                   <p className="mt-1 text-xs text-muted-foreground">
-                    Full generations at temperature {temp.toFixed(1)} from the {baseline_ ? "untrained" : "current"} model.
+                    Whole names written one letter at a time by the {baseline_ ? "untrained" : "trained"} model, at temperature {temp.toFixed(1)}.
+                    Most will be new: it learned how names sound, not a list of them.
                   </p>
                   <Button className="mt-3" size="sm" disabled={!ready} onClick={() => worker.current?.postMessage({ type: "generate", payload: { count: 12, temperature: temp, baseline: baseline_ } })}>
                     Generate 12 names
@@ -353,12 +352,13 @@ export default function Microgpt() {
                 </div>
               </div>
             </section>
+            </div>
           </>
         )}
 
         {tab === "train" && (<>
         {/* 1 DATA */}
-        <Section n={1} title="Data: what it learns from" lead="A model only knows what it is shown. It reads examples one at a time and learns which character tends to follow which.">
+        <Section n={1} title="Pick what it reads" lead="A model only knows what it is shown. It reads one example after another and learns which letters tend to follow which.">
           <div className="grid gap-2 sm:grid-cols-3">
             {(Object.keys(DATASETS) as DataKey[]).map((k) => (
               <button key={k} type="button" disabled={training} onClick={() => setDataKey(k)} aria-pressed={dataKey === k}
@@ -376,10 +376,10 @@ export default function Microgpt() {
           )}
           <div className="grid gap-4 md:grid-cols-2">
             <div className="rounded-md border bg-card p-4">
-              <h3 className="text-sm font-semibold">Tokenizer: text → numbers</h3>
+              <h3 className="text-sm font-semibold">Letters become ids</h3>
               <p className="mt-1 text-xs text-muted-foreground">
-                Models work on numbers. Each distinct character gets an id; ⏎ marks the start and end of an example.
-                {" "}{docs.length.toLocaleString()} examples, {V} tokens in the vocabulary.
+                The model works on numbers, so every distinct letter gets an id. ⏎ marks the start and the end of each example.
+                {" "}{docs.length.toLocaleString()} examples, {V} different tokens.
               </p>
               <div className="mt-3 flex flex-wrap gap-1">
                 {vocab.slice(0, 60).map((c, i) => (
@@ -393,7 +393,7 @@ export default function Microgpt() {
                 <h3 className="text-sm font-semibold">One example becomes many lessons</h3>
                 <Button size="sm" variant="ghost" onClick={() => setExampleIdx((i) => i + 1)}>Another</Button>
               </div>
-              <p className="mt-1 text-xs text-muted-foreground">At every position, the model sees everything so far and must guess the next token.</p>
+              <p className="mt-1 text-xs text-muted-foreground">Every position is a small quiz: here is everything so far, what comes next?</p>
               <ul className="mt-3 space-y-1 font-mono text-sm">
                 {exTokens.slice(0, -1).slice(0, 8).map((_, i) => (
                   <li key={i} className="flex items-center gap-2">
@@ -408,7 +408,7 @@ export default function Microgpt() {
         </Section>
 
         {/* 2 ARCHITECTURE */}
-        <Section n={2} title="Architecture: the shape of the brain" lead="This is a decoder-only transformer, the same recipe as GPT. Click any block to see what it does, then change the sizes and watch the parameter count move.">
+        <Section n={2} title="Choose its size" lead="The same recipe as GPT (a decoder-only transformer), at a size you can watch. Click a block to see what it does, then change the sizes and see how many numbers it has to learn.">
           <div className="flex flex-wrap gap-2" role="group" aria-label="Presets">
             {PRESETS.map((p) => (
               <Button key={p.label} size="sm" variant="outline" disabled={training} onClick={() => applyPreset(p)} title={p.hint}>{p.label}</Button>
@@ -416,26 +416,26 @@ export default function Microgpt() {
           </div>
           <div className="grid gap-5 rounded-md border bg-card p-4 sm:grid-cols-2">
             <Stepper label="Embedding size" value={arch.nEmbd} min={4} max={64} step={4} disabled={training} set={(v) => setArchField("nEmbd", v)}
-              hint="How many numbers describe each character. Bigger can hold more nuance." />
+              hint="How many numbers describe each letter. More can hold more detail, but takes longer to learn." />
             <Stepper label="Attention heads" value={arch.nHead} min={1} max={8} disabled={training}
               set={(v) => { const d = divisors(arch.nEmbd); setArchField("nHead", d.reduce((a, b) => (Math.abs(b - v) < Math.abs(a - v) ? b : a))); }}
-              hint="Parallel look-ups. Must divide the embedding size." />
+              hint="How many separate ways each letter can look back. Must divide the embedding size." />
             <Stepper label="Layers" value={arch.nLayer} min={1} max={4} disabled={training} set={(v) => setArchField("nLayer", v)}
-              hint="How many attention + MLP blocks are stacked." />
+              hint="How many attention + MLP blocks are stacked. Each one refines the last." />
             <Stepper label="Context length" value={arch.blockSize} min={2} max={32} disabled={training} set={(v) => setArchField("blockSize", v)}
-              hint="How many characters back it can see." />
+              hint="The longest stretch of letters it can read at once." />
           </div>
           <ArchDiagram cfg={arch} V={V} sel={sel} onSel={setSel} />
-          <p className="text-xs text-muted-foreground">Changing any size builds a fresh, untrained model. Your previous run is kept in the Compare tab.</p>
+          <p className="text-xs text-muted-foreground">Changing any size starts a new model from random numbers. Your previous run is saved in Compare.</p>
         </Section>
 
         {/* 3 TRAIN */}
-        <Section n={3} title="Train: learning from mistakes" lead="Each step: show one example, measure how surprised the model is (the loss), work out which parameters caused the error (backpropagation), and nudge them a little (Adam optimiser). Loss going down means it is learning.">
+        <Section n={3} title="Let it practise" lead="Each step it reads a few names, checks how surprised it was by each real next letter (the loss), works out which numbers were to blame (backpropagation), and nudges them a little. Falling loss means it is learning.">
           <div className="grid gap-5 rounded-md border bg-card p-4 sm:grid-cols-2">
             <div className="space-y-2">
               <Label className="flex justify-between"><span>Learning rate</span><span className="font-mono text-primary">{lr}</span></Label>
               <Slider min={0.001} max={0.1} step={0.001} value={[lr]} disabled={training} onValueChange={([v]) => setLr(v)} />
-              <p className="text-xs text-muted-foreground">Size of each nudge. Too small learns slowly; too big overshoots and the loss bounces or explodes.</p>
+              <p className="text-xs text-muted-foreground">How big each nudge is. Too small and it learns slowly; too big and it overshoots, so the loss jumps around.</p>
             </div>
             <div className="space-y-2">
               <Label>Steps to train</Label>
@@ -444,19 +444,19 @@ export default function Microgpt() {
                   <Button key={s} size="sm" variant={steps === s ? "default" : "outline"} disabled={training} onClick={() => setSteps(s)}>{s}</Button>
                 ))}
               </div>
-              <p className="text-xs text-muted-foreground">One step = one batch of examples. You can train again to continue.</p>
+              <p className="text-xs text-muted-foreground">One step reads one batch of names. Train again to keep going.</p>
             </div>
             <div className="space-y-2">
               <Label className="flex justify-between"><span>Batch size</span><span className="font-mono text-primary">{batchSize}</span></Label>
               <Slider min={1} max={32} step={1} value={[batchSize]} disabled={training} onValueChange={([v]) => setBatchSize(v)} />
-              <p className="text-xs text-muted-foreground">Names averaged per step. Bigger = smoother learning, slower steps.</p>
+              <p className="text-xs text-muted-foreground">How many names it reads per step. More gives steadier learning but slower steps.</p>
             </div>
           </div>
           {pretrained && (
             <div className="flex flex-wrap items-center gap-3 rounded-md border bg-card p-3 text-sm">
               <span className="text-muted-foreground">
-                Loaded a model already trained on {docs.length.toLocaleString()} names ({pretrained.step.toLocaleString()} steps, loss {pretrained.loss.toFixed(2)}).
-                Train more, or start over from random weights.
+                This model has already practised on {docs.length.toLocaleString()} names ({pretrained.step.toLocaleString()} steps, loss {pretrained.loss.toFixed(2)}).
+                Train it more, or start over from random numbers and watch it learn from nothing.
               </span>
               <Button size="sm" variant="outline" disabled={training} onClick={() => { usePre.current = false; setScratch((n) => n + 1); }}>Start from scratch</Button>
             </div>
@@ -468,7 +468,7 @@ export default function Microgpt() {
             </Button>
             <Button variant="outline" disabled={!training} onClick={() => worker.current?.postMessage({ type: "stop" })}>Stop</Button>
             {trainedSteps > 0 && !training && (
-              <Button variant="outline" onClick={() => setTab("explain")}>Look inside the trained model →</Button>
+              <Button variant="outline" onClick={() => setTab("explain")}>See inside the model</Button>
             )}
             <span className="font-mono text-xs text-muted-foreground">
               {numParams.toLocaleString()} params · step {trainedSteps}{lossNow != null && ` · loss ${lossNow.toFixed(3)}`}
@@ -478,16 +478,16 @@ export default function Microgpt() {
           <div className="rounded-md border bg-card p-4">
             <div className="mb-2 flex items-baseline justify-between">
               <h3 className="text-sm font-semibold">Loss</h3>
-              <p className="text-xs text-muted-foreground">lower is better · dashed line is a blind guess</p>
+              <p className="text-xs text-muted-foreground">Lower is better. The dashed line is a blind guess.</p>
             </div>
             <LossChart runs={lines} baseline={baseline} />
           </div>
 
           {last && (
             <div className="rounded-md border bg-card p-4">
-              <h3 className="text-sm font-semibold">The example it just studied</h3>
+              <h3 className="text-sm font-semibold">The last name it practised on</h3>
               <p className="mt-1 text-xs text-muted-foreground">
-                Each pair shows the correct next character and how surprised the model was (loss). Dark = surprised.
+                Each pair is one quiz: the letter it saw and the real next letter. Darker means it was more surprised.
               </p>
               <div className="mt-3 flex flex-wrap gap-2">
                 {last.posLosses.map((l, i) => (
@@ -503,8 +503,8 @@ export default function Microgpt() {
           )}
 
           <div className="rounded-md border bg-card p-4">
-            <h3 className="text-sm font-semibold">What it writes as it learns</h3>
-            <p className="mt-1 text-xs text-muted-foreground">Names invented at checkpoints during training. Step 0 is a brand-new random model.</p>
+            <h3 className="text-sm font-semibold">Names it writes as it learns</h3>
+            <p className="mt-1 text-xs text-muted-foreground">Samples taken along the way. At step 0 the numbers are random, so it writes gibberish.</p>
             <div className="mt-3 space-y-2">
               {checkpoints.map((c) => (
                 <div key={c.step} className="flex items-baseline gap-3">
@@ -521,7 +521,7 @@ export default function Microgpt() {
         </>)}
 
         {tab === "compare" && (
-        <Section title="Compare: tweak, retrain, learn" lead="Every time you change the architecture or data after training, the old run is saved here. Use the presets in the Train tab and compare final loss against model size.">
+        <Section title="Compare runs" lead="Each time you change the data or the size after training, the old run is saved here. Lower final loss means better guesses.">
           {(runs.length > 0 || trainedSteps > 0) && (
             <div className="rounded-md border bg-card p-4">
               <h3 className="mb-2 text-sm font-semibold">Loss curves</h3>
@@ -530,7 +530,7 @@ export default function Microgpt() {
           )}
           {runs.length === 0 && trainedSteps === 0 ? (
             <p className="rounded-md border border-dashed p-4 text-sm text-muted-foreground">
-              Train once, then change something in the Train tab and train again. Runs will line up here.
+              Nothing to compare yet. Train a model, change something in the Train tab, and train again. Both runs will appear here.
             </p>
           ) : (
             <div className="overflow-x-auto rounded-md border bg-card">
@@ -558,16 +558,16 @@ export default function Microgpt() {
           )}
           {runs.length > 0 && <Button variant="ghost" size="sm" onClick={() => setRuns([])}>Clear saved runs</Button>}
           <div className="rounded-md border bg-card p-4 text-sm text-muted-foreground">
-            <b className="text-foreground">Things to try:</b> train “Tiny brain” and “Wide” on names and compare loss.
-            Switch to Animals and train 2,000 steps: loss drops far below the names run because it is memorising 70 words.
-            Set the learning rate to 0.1 and watch training go unstable. Set context to 2 and see what it can no longer do.
+            <b className="text-foreground">Things to try.</b> Train “Tiny brain” and “Wide” on names and compare their loss.
+            Switch to Animals and train 2,000 steps: the loss falls far below the names run because it memorises 70 words.
+            Pick “LR too high” and watch training go unstable. Pick “Short memory” and see what it can no longer do.
           </div>
         </Section>
         )}
 
         <p className="border-t pt-6 text-center text-xs text-muted-foreground">
-          Core engine by <a className="underline" href="https://github.com/kylemath/microgptJS">kylemath/microgptJS</a> (MIT),
-          a JavaScript port of Karpathy’s <a className="underline" href="https://gist.github.com/karpathy/8627fe009c40f57531cb18360106ce95">microgpt.py</a>.
+          Model based on Karpathy’s <a className="underline" href="https://gist.github.com/karpathy/8627fe009c40f57531cb18360106ce95">microgpt.py</a>{" "}
+          via <a className="underline" href="https://github.com/kylemath/microgptJS">kylemath/microgptJS</a> (MIT). Names dataset from Karpathy’s makemore.
         </p>
       </div>
       <Footer />

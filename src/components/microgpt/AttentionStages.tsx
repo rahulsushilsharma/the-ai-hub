@@ -70,8 +70,7 @@ export default function AttentionStages({ L, head, d, hl, labels, row, hover, se
   };
   useEffect(() => {
     play();
-    // replay when the head, sequence length or a global replay changes
-  }, [head, T, tick]);
+  }, [head, tick]); // not on new letters: the panel updates in place
 
   const hot = (i: number, j: number) => hover?.[0] === i && hover[1] === j;
   const enter = (i: number, j: number) => { setHover([i, j]); setFlow({ hoverToken: i, hoverCell: { row: i, col: j } }); };

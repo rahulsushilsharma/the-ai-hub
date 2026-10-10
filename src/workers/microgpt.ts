@@ -59,7 +59,7 @@ self.onmessage = async ({ data }) => {
   } else if (type === "stop") {
     stopping = true;
   } else if (type === "trace" && model) {
-    post("trace", { id: payload.id, rows: (payload.baseline && base ? base : model).trace(payload.tokens) });
+    post("trace", { id: payload.id, tokens: payload.tokens, rows: (payload.baseline && base ? base : model).trace(payload.tokens) });
   } else if (type === "embeddings" && model) {
     post("embeddings", (payload?.baseline && base ? base : model).getEmbeddings());
   } else if (type === "generate" && model) {

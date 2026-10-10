@@ -91,7 +91,7 @@ function AttentionDetail({
   scale: { qkv: number; res: number; attn: number };
   spot: number | null; // guided tour: which numbered section to emphasise
 }) {
-  const sec = (n: number) => cn("space-y-3 rounded-md transition-opacity duration-300", spot != null && (spot === n ? "ring-2 ring-primary/60 ring-offset-8 ring-offset-card" : "opacity-30"));
+  const sec = (n: number) => cn("grid gap-3 rounded-md transition-opacity duration-300 xl:grid-cols-[20rem_minmax(0,1fr)] xl:gap-x-8 xl:[&>*:first-child]:row-span-2 xl:[&>*:not(:first-child)]:col-start-2", spot != null && (spot === n ? "ring-2 ring-primary/60 ring-offset-8 ring-offset-card" : "opacity-30"));
   const [hover, setHover] = useState<[number, number] | null>(null);
   const d = arch.nEmbd / arch.nHead;
   const hl: [number, number] = [head * d, head * d + d];
@@ -105,8 +105,7 @@ function AttentionDetail({
   return (
     <div className="space-y-8">
       <div className="flex flex-wrap items-center gap-2">
-        <span className="text-sm font-semibold">Attention · layer {layer + 1}</span>
-        <span className="text-xs text-muted-foreground">head:</span>
+        <span className="text-xs text-muted-foreground">Head</span>
         {Array.from({ length: arch.nHead }, (_, h) => (
           <Button key={h} size="sm" variant={h === head ? "default" : "outline"} onClick={() => setHead(h)}>{h + 1}</Button>
         ))}
@@ -114,10 +113,10 @@ function AttentionDetail({
 
       {/* Q K V */}
       <div className={sec(1)}>
-        <Note title="① Query, Key, Value">
-          Every character's vector is multiplied by three learned matrices. The <b>query</b> is what this character is
-          looking for, the <b>key</b> is what it offers to others, the <b>value</b> is what it hands over if chosen.
-          Head {head + 1} works on dims {hl[0]}–{hl[1] - 1} (bright); the other heads use the dimmed rest.
+        <Note title="① Query, key and value">
+          Each letter turns its numbers into three new lists. The <b>query</b> is what it is looking for, the <b>key</b> is
+          what it can offer to others, and the <b>value</b> is what it hands over if another letter picks it.
+          Head {head + 1} uses only part of each list (the bright section); the other heads use the rest.
         </Note>
         <div className="overflow-x-auto">
           <div className="grid w-max grid-cols-[auto_repeat(3,auto)] items-center gap-x-4 gap-y-1">
@@ -137,24 +136,23 @@ function AttentionDetail({
 
       {/* scores + weights */}
       <div className={sec(2)}>
-        <Note title="② Who should I look at?">
-          Compare each query with the keys of every character up to and including itself (dot product, divided by √{d}).
-          Higher score = better match. The hatched area is <b>masked</b>: a GPT may never peek at letters that come later.
-          Softmax then turns each row into percentages that add up to 100%.
+        <Note title="② Who looks at whom">
+          Every query is compared with every key (a dot product, scaled down by √{d}). Then the future is hidden, because a
+          letter may only look at itself and the letters before it. Finally each row becomes percentages that add up to 100%.
         </Note>
         <AttentionStages L={L} head={head} d={d} hl={hl} labels={labels} row={row} hover={hover} setHover={setHover} setFocus={setFocus} qkvScale={scale.qkv} />
         <p className="min-h-5 font-mono text-xs text-muted-foreground" aria-live="polite">
           {hovered
             ? `q[“${labels[hovered.i]}”] · k[“${labels[hovered.j]}”] / √${d} = ${scores[hovered.i][hovered.j].toFixed(2)}  →  softmax  →  ${(weights[hovered.i][hovered.j] * 100).toFixed(0)}% of “${labels[hovered.i]}”’s attention goes to “${labels[hovered.j]}”`
-            : "Hover or tap a cell for the exact calculation. Click a row to follow that character below."}
+            : "Hover a dot for the exact numbers. Click a dot to follow that letter in the next step."}
         </p>
       </div>
 
       {/* mix values */}
       <div className={sec(3)}>
-        <Note title={`③ Mix the values for “${labels[row]}”`}>
-          The new vector for “{labels[row]}” is a weighted blend of the value vectors it attended to. Characters with a
-          bigger weight contribute more.
+        <Note title={`③ The blend for “${labels[row]}”`}>
+          The new list for “{labels[row]}” is a mix of the values of the letters it looked at. A letter that got 60% of the
+          attention contributes 60% of the mix.
         </Note>
         <div className="grid w-max grid-cols-[auto_auto_auto_auto] items-center gap-x-3 gap-y-1">
           {Array.from({ length: row + 1 }, (_, j) => (
@@ -173,10 +171,10 @@ function AttentionDetail({
 
       {/* concat -> wo -> residual */}
       <div className={sec(4)}>
-        <Note title="④ Join heads, project, add back (residual)">
-          All {arch.nHead} head outputs are placed side by side, passed through a learned output matrix (Wₒ), and
-          <b> added to the vector that came in</b>. That skip path (residual connection) lets information and learning
-          signal flow straight through.
+        <Note title="④ Join the heads and add back">
+          The {arch.nHead} head{arch.nHead > 1 ? "s’" : "’s"} results are placed side by side, mixed by one more learned
+          matrix, then <b>added to the list that came in</b>. That shortcut (a residual connection) means attention only has
+          to add what is new, and nothing that came in is lost.
         </Note>
         <div className="flex flex-wrap items-center gap-1 overflow-x-auto">
           <div><p className="font-mono text-[10px] text-muted-foreground">heads joined</p><Strip v={fl.concat} scale={scale.qkv} /></div>
@@ -201,9 +199,9 @@ function EmbeddingDetail({ rows, labels, vocabLabels, scale }: {
   return (
     <div className="space-y-4">
       <Note title="Letters become numbers">
-        Each letter has an id. The id picks a learned row of numbers (<b>token embedding</b>). A second learned row says
-        <b> where</b> the letter sits (<b>position embedding</b>), because attention alone has no sense of order. The two
-        are added and rescaled. That vector is what the rest of the model sees.
+        Each letter has an id, and the id picks a learned list of numbers: the <b>letter</b> part. A second learned list
+        depends only on <b>where</b> the letter sits. Without it, “am” and “ma” would look the same. The two are added and
+        rescaled to a steady size, and that is what every later step works on.
       </Note>
       <div className="overflow-x-auto">
         <div className="grid w-max grid-cols-[auto_auto_auto_auto_auto_auto_auto] items-center gap-x-3 gap-y-1.5 font-mono text-xs">
@@ -257,14 +255,14 @@ function MlpDetail({ layer, rows, labels, row, scale }: {
   return (
     <div className="space-y-4">
       <span className="text-sm font-semibold">MLP · layer {layer + 1} · for “{labels[row]}”</span>
-      <Note title="What happens">
-        Each character is processed on its own now. The vector is expanded to 4× wider, ReLU switches every negative
-        number to zero (only <b>{active} of {l.mlpAct.length}</b> neurons fire here), then it is squeezed back and added
-        to the input again. Attention gathered context; this step digests it.
+      <Note title="Each letter, on its own">
+        After attention mixed information between letters, each letter is processed alone. Its numbers are widened to{" "}
+        {l.mlpAct.length} neurons. Each neuron either fires or is switched off (ReLU sets negatives to zero). Here{" "}
+        <b>{active} of {l.mlpAct.length}</b> fire. The result is narrowed back and added to what came in.
       </Note>
       <div>
         <p className="font-mono text-[10px] text-muted-foreground">
-          {l.mlpPre.length} hidden neurons after W₁: bars above the line fire, bars below are zeroed by ReLU
+          {l.mlpPre.length} neurons: bars above the line fire, bars below are switched off
         </p>
         <NeuronBars pre={l.mlpPre} />
       </div>
@@ -349,24 +347,24 @@ function OutputPanel({ logits, finalVec, vocabLabels, labelFor, temp, setTemp, r
   }, [draw]);
 
   const shown = order.slice(0, 10);
-  const shades = ["var(--primary)", "color-mix(in oklab, var(--primary) 60%, var(--card))"];
+  const shades = ["var(--mg-out)", "color-mix(in oklab, var(--mg-out) 55%, var(--card))"];
 
   return (
     <div className="rounded-md border bg-card p-4">
-      <h3 className="text-sm font-semibold">Output: from scores to the next character (after “{labelFor}”)</h3>
+      <h3 className="text-sm font-semibold">Choosing the letter after “{labelFor}”</h3>
       <div className="mt-3 grid gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
         <div className="space-y-5 text-sm leading-relaxed text-muted-foreground">
           <div className="space-y-2">
-            <p><b className="text-foreground">① Scores.</b> The final vector becomes one score (logit) per character.</p>
+            <p><b className="text-foreground">① Score every letter.</b> The final list of numbers becomes one score per possible letter (the logits).</p>
             <div className="flex items-center gap-2"><Strip v={finalVec} scale={resScale} /><Op>→</Op><Strip v={logits} scale={logitScale} width={140} /></div>
           </div>
           <div className="space-y-2">
-            <p className="flex justify-between gap-2"><span><b className="text-foreground">② Temperature + softmax.</b> Scores ÷ T, then to percentages.</span><span className="font-mono text-primary">T={temp.toFixed(1)}</span></p>
+            <p className="flex justify-between gap-2"><span><b className="text-foreground">② Turn scores into chances.</b> Divide by the temperature, then softmax.</span><span className="font-mono text-primary">T={temp.toFixed(1)}</span></p>
             <Slider min={0.1} max={2} step={0.1} value={[temp]} onValueChange={([v]) => setTemp(v)} aria-label="Temperature" />
-            <p className="text-xs">Low T: the favourite takes almost everything. High T: probabilities even out.</p>
+            <p className="text-xs">Low temperature: the favourite takes almost everything. High: the chances even out and odd letters get picked.</p>
           </div>
           <div className="space-y-2">
-            <p><b className="text-foreground">③ Filter.</b> Optionally drop unlikely characters, then renormalise.</p>
+            <p><b className="text-foreground">③ Drop the long tail (optional).</b> Keep only the likeliest letters, then rescale to 100%.</p>
             <div className="flex flex-wrap gap-1" role="group" aria-label="Sampling filter">
               {([["full", "None"], ["topk", "Top-k"], ["topp", "Top-p"]] as const).map(([m, l]) => (
                 <Button key={m} size="sm" variant={mode === m ? "default" : "outline"} onClick={() => setMode(m)}>{l}</Button>
@@ -384,7 +382,7 @@ function OutputPanel({ logits, finalVec, vocabLabels, labelFor, temp, setTemp, r
                 <Slider min={0.05} max={1} step={0.05} value={[pCut]} onValueChange={([v]) => setPCut(v)} aria-label="Top-p" />
               </div>
             )}
-            <p className="text-xs">{keptOrder.length} of {probs.length} characters can still be picked.</p>
+            <p className="text-xs">{keptOrder.length} of {probs.length} letters can still be picked.</p>
           </div>
         </div>
 
@@ -405,11 +403,11 @@ function OutputPanel({ logits, finalVec, vocabLabels, labelFor, temp, setTemp, r
                     <span className="w-9 text-right text-muted-foreground">{logits[i].toFixed(1)}</span>
                   </span>
                   <span className="flex items-center gap-1">
-                    <span className="h-3 flex-1 rounded-sm bg-muted/50"><span className="block h-full rounded-sm bg-primary/50 transition-[width] duration-300" style={{ width: `${probs[i] * 100}%` }} /></span>
+                    <span className="h-3 flex-1 rounded-sm bg-muted/50"><span className="block h-full rounded-sm transition-[width] duration-300" style={{ width: `${probs[i] * 100}%`, background: "color-mix(in oklab, var(--mg-out) 50%, var(--card))" }} /></span>
                     <span className="w-10 text-right text-muted-foreground">{(probs[i] * 100).toFixed(1)}%</span>
                   </span>
                   <span className="flex items-center gap-1">
-                    <span className="h-3 flex-1 rounded-sm bg-muted/50"><span className="block h-full rounded-sm bg-primary transition-[width] duration-300" style={{ width: `${q[i] * 100}%` }} /></span>
+                    <span className="h-3 flex-1 rounded-sm bg-muted/50"><span className="block h-full rounded-sm transition-[width] duration-300" style={{ width: `${q[i] * 100}%`, background: "var(--mg-out)" }} /></span>
                     <span className="w-10 text-right">{kept[i] ? `${(q[i] * 100).toFixed(1)}%` : "out"}</span>
                   </span>
                 </li>
@@ -418,12 +416,12 @@ function OutputPanel({ logits, finalVec, vocabLabels, labelFor, temp, setTemp, r
           </div>
 
           <div className="space-y-2">
-            <p className="text-sm text-muted-foreground"><b className="text-foreground">④ Pick.</b> A random number between 0 and 100% lands in one character’s slice; that character is chosen. Likelier characters own wider slices.</p>
+            <p className="text-sm text-muted-foreground"><b className="text-foreground">④ Draw one.</b> A random point lands somewhere on this strip. Likelier letters own wider slices, so they win more often, but not always.</p>
             <div className="relative h-9 rounded-md border bg-muted/30">
               <div className="flex h-full overflow-hidden rounded-md">
                 {keptOrder.filter((i) => q[i] > 0.001).map((i, n) => (
                   <div key={i} title={`${vocabLabels[i]} ${(q[i] * 100).toFixed(1)}%`}
-                    className={cn("grid h-full place-items-center border-r border-card font-mono text-xs text-primary-foreground", draw?.done && draw.idx === i && "ring-2 ring-inset ring-foreground")}
+                    className={cn("grid h-full place-items-center border-r border-card font-mono text-xs text-[#1c1206]", draw?.done && draw.idx === i && "ring-2 ring-inset ring-foreground")}
                     style={{ width: `${q[i] * 100}%`, background: shades[n % 2] }}>
                     {q[i] > 0.04 ? vocabLabels[i] : ""}
                   </div>
@@ -443,7 +441,7 @@ function OutputPanel({ logits, finalVec, vocabLabels, labelFor, temp, setTemp, r
                   {draw.idx < vocabLabels.length - 1 ? (
                     <Button size="sm" variant="outline" onClick={() => onAppend(draw.idx)}>Append “{vocabLabels[draw.idx]}” and continue</Button>
                   ) : (
-                    <span className="text-xs text-muted-foreground">⏎ means the name ends here.</span>
+                    <span className="text-xs text-muted-foreground">⏎ means the model thinks the name ends here.</span>
                   )}
                 </>
               )}
@@ -457,13 +455,20 @@ function OutputPanel({ logits, finalVec, vocabLabels, labelFor, temp, setTemp, r
 
 /* ---------- main ---------- */
 
+const KEY: [string, string][] = [
+  ["Letter numbers", "--mg-emb"], ["Query", "--mg-q"], ["Key", "--mg-k"], ["Value", "--mg-v"],
+  ["Attention", "--mg-attn"], ["MLP", "--mg-mlp"], ["Output", "--mg-out"],
+];
+
 export default function Explainer({
-  rows, labels, vocabLabels, arch, temp, setTemp, prefix, setPrefix, examples, trained, canExtend, onGoTrain,
+  rows, labels, vocabLabels, arch, temp, setTemp, prefix, setPrefix, examples, trained, canExtend, onGoTrain, busy, numParams, nDocs, viewSwitch,
 }: {
   rows: Trace[]; labels: string[]; vocabLabels: string[]; arch: ArchCfg;
   temp: number; setTemp: (t: number) => void;
   prefix: string; setPrefix: (p: string) => void; examples: string[];
   trained: number; canExtend: boolean; onGoTrain: () => void;
+  busy: boolean; // a newer trace is on its way: rows still describe the previous input
+  numParams: number; nDocs: number; viewSwitch?: React.ReactNode;
 }) {
   const [open, setOpen] = useState<Expand>(null);
   const [note, setNote] = useState<string | null>(null);
@@ -543,7 +548,21 @@ export default function Explainer({
     return { ch: vocabLabels[i], p: e[i] / s };
   };
 
+  const guess = top(last);
+  const n = arch.nEmbd;
+  const steps: { kind: "emb" | "attn" | "mlp" | "out"; title: string; hue: string; text: string }[] = [
+    { kind: "emb", title: "Embedding", hue: "--mg-emb", text: `Each letter is swapped for a learned list of ${n} numbers, mixed with a second list that says where it sits in the name.` },
+    { kind: "attn", title: "Attention", hue: "--mg-attn", text: "Each letter looks back at the letters before it and pulls in what helps. This is the only step where letters share information." },
+    { kind: "mlp", title: "MLP", hue: "--mg-mlp", text: `Each letter’s numbers then pass through ${4 * n} neurons on their own. Different neurons fire for different patterns.` },
+    { kind: "out", title: "Output", hue: "--mg-out", text: "The final numbers become a score for every possible letter, then chances. One is drawn, added to the name, and the loop starts again." },
+  ];
+  const openStep = (kind: "emb" | "attn" | "mlp" | "out") => {
+    setOpen({ kind, layer: 0 });
+    document.getElementById("zone-map")?.scrollIntoView({ behavior: reduced() ? "auto" : "smooth", block: "start" });
+  };
+
   const generate = () => {
+    if (busy) return; // these logits belong to the previous input
     const p = softmaxT(last.logits, temp);
     let r = Math.random(), idx = p.length - 1;
     for (let i = 0; i < p.length; i++) { r -= p[i]; if (r <= 0) { idx = i; break; } }
@@ -562,7 +581,7 @@ export default function Explainer({
     ) : (
       <OutputPanel logits={last.logits} finalVec={finalVec(last)} vocabLabels={vocabLabels} labelFor={labels[T - 1]}
         temp={temp} setTemp={setTemp} resScale={scale.res} logitScale={scale.logit}
-        onAppend={(i) => { setPrefix(prefix + vocabLabels[i]); setFocus(null); }} />
+        onAppend={(i) => { if (!busy) { setPrefix(prefix + vocabLabels[i]); setFocus(null); } }} />
     );
 
   const Head = ({ children }: { children: React.ReactNode }) => (
@@ -572,6 +591,34 @@ export default function Explainer({
   return (
     <div className="space-y-8">
       <Textbook tour={tour} setTour={setTour} lessons={LESSONS} arch={arch} onGoTrain={onGoTrain} />
+
+      {/* the one idea, shown live: what the model reads right now and its best guess */}
+      <section aria-labelledby="mg-idea" className="grid gap-6 rounded-2xl border bg-card p-6 md:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)] md:gap-10 md:p-8">
+        <div>
+          <h2 id="mg-idea" className="font-serif text-3xl leading-[1.15] tracking-tight text-balance md:text-[2.6rem]">
+            A GPT does one thing: it guesses what comes next.
+          </h2>
+          <p className="mt-4 max-w-[62ch] text-[15px] leading-relaxed text-muted-foreground">
+            Give it the start of a name and it scores every letter that could follow. Pick one, add it, ask again. That loop
+            is all “writing” is. ChatGPT runs the same loop over word pieces, with billions of learned numbers. This one has{" "}
+            {numParams.toLocaleString()}, learned from {nDocs.toLocaleString()} names, and below you can watch every one of them at work.
+          </p>
+        </div>
+        <figure className="self-end rounded-xl bg-background/70 p-5" aria-live="polite">
+          <figcaption className="text-sm text-muted-foreground">It reads</figcaption>
+          <div className="mt-2 flex flex-wrap items-baseline gap-x-2.5 gap-y-1 font-mono text-3xl md:text-[2.5rem]">
+            {labels.map((l, i) => <span key={i} className={i === 0 ? "text-muted-foreground" : undefined}>{l}</span>)}
+            <span aria-hidden className="px-1 text-xl text-muted-foreground">→</span>
+            <span className="rounded-lg px-2" style={{ background: "color-mix(in oklab, var(--mg-out) 35%, transparent)" }}>{guess.ch}</span>
+          </div>
+          <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
+            {guess.ch === BOS
+              ? <>Its best guess is that the name ends here ({(guess.p * 100).toFixed(0)}%).</>
+              : <>Its best guess is “{guess.ch}”, at {(guess.p * 100).toFixed(0)}%.</>}{" "}
+            {trained === 0 ? "This model is untrained, so that guess is noise." : "Everything behind that guess is in the map below."}
+          </p>
+        </figure>
+      </section>
 
       {/* top bar: input, generate, temperature, textbook */}
       <div id="zone-input" className={cn("flex flex-wrap items-center gap-x-3 gap-y-2 rounded-2xl border bg-card px-4 py-3 transition-opacity duration-300", zc("input"))}>
@@ -584,7 +631,7 @@ export default function Explainer({
             <Button key={x} size="sm" variant="ghost" className="font-mono" onClick={() => { setPrefix(x); setFocus(null); setNote(null); }}>{x}</Button>
           ))}
         </div>
-        <Button size="sm" onClick={generate} disabled={!canExtend}>Generate next letter</Button>
+        <Button size="sm" onClick={generate} disabled={!canExtend || busy}>Generate next letter</Button>
         <label className="flex w-44 items-center gap-2 text-xs text-muted-foreground">
           <span>Temperature</span>
           <Slider min={0.1} max={2} step={0.1} value={[temp]} onValueChange={([v]) => setTemp(v)} aria-label="Temperature" />
@@ -602,6 +649,19 @@ export default function Explainer({
         </p>
       )}
 
+      <div className="-mt-4 flex flex-wrap items-center gap-x-6 gap-y-3 px-1">
+        {viewSwitch}
+        <p className="max-w-[70ch] text-xs leading-relaxed text-muted-foreground">
+          <b className="font-medium text-foreground">How to read the map.</b> Each row is one letter, moving left to right through
+          the model. Each small tile is a list of numbers: the stronger the colour, the bigger the number. Click a block to open it.
+        </p>
+        <ul className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground" aria-label="Colour key">
+          {KEY.map(([label, hue]) => (
+            <li key={label} className="inline-flex items-center gap-1.5"><i className="size-2.5 rounded-sm" style={{ background: `var(${hue})` }} />{label}</li>
+          ))}
+        </ul>
+      </div>
+
       {/* the whole model, details open in place */}
       <div id="zone-map">
         <ModelMap rows={rows} labels={labels} vocabLabels={vocabLabels} arch={arch} temp={temp}
@@ -609,10 +669,32 @@ export default function Explainer({
           zones={lesson?.zones ?? []} expanded={open} setExpanded={setOpen} detail={detail} />
       </div>
 
+      <section aria-labelledby="mg-steps" className="space-y-3">
+        <h2 id="mg-steps" className="text-lg font-semibold tracking-tight">What happens at each step</h2>
+        <ol className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          {steps.map((st, i) => (
+            <li key={st.kind}>
+              <button type="button" onClick={() => openStep(st.kind)} style={{ "--hue": `var(${st.hue})` } as React.CSSProperties}
+                className="group flex h-full w-full flex-col rounded-xl border bg-card p-4 text-left transition-colors hover:border-[var(--hue)] focus-visible:outline-2 focus-visible:outline-ring">
+                <span className="flex items-center gap-2 text-sm font-semibold">
+                  <span className="grid size-6 place-items-center rounded-full text-xs text-foreground" style={{ background: "color-mix(in oklab, var(--hue) 35%, var(--card))" }}>{i + 1}</span>
+                  {st.title}
+                </span>
+                <span className="mt-2 flex-1 text-sm leading-relaxed text-muted-foreground">{st.text}</span>
+                <span className="mt-3 text-xs font-medium text-foreground/80 group-hover:underline">Open {st.title}</span>
+              </button>
+            </li>
+          ))}
+        </ol>
+        <p className="text-xs text-muted-foreground">
+          Attention and MLP together make one block. This model repeats the block {arch.nLayer} time{arch.nLayer > 1 ? "s" : ""}; GPT-3 repeats it 96 times.
+        </p>
+      </section>
+
       <button type="button" onClick={() => setDeep((d) => !d)} aria-expanded={deep}
         className="w-full rounded-md border border-dashed px-4 py-3 text-left text-sm text-muted-foreground transition-colors hover:border-primary hover:text-foreground">
-        <b className="text-foreground">{deep ? "▾" : "▸"} Deep dive: every number, row by row</b>
-        <span className="ml-2 text-xs">Raw vectors for each character at each step.</span>
+        <b className="text-foreground">{deep ? "▾" : "▸"} Every number, row by row</b>
+        <span className="ml-2 text-xs">The raw lists behind each tile, for the curious.</span>
       </button>
 
       {/* overview (deep dive) */}
@@ -686,7 +768,7 @@ export default function Explainer({
       <p className="text-xs text-muted-foreground">
         Layout and teaching flow inspired by{" "}
         <a className="underline" href="https://poloclub.github.io/transformer-explainer/">Transformer Explainer</a> (Polo Club, MIT).
-        This model differs from GPT-2: characters instead of word pieces, RMSNorm instead of LayerNorm, ReLU instead of GELU, no biases or dropout, and {arch.nEmbd} dims instead of 768. {BOS} = start marker.
+        How this differs from GPT-2: letters instead of word pieces, {arch.nEmbd} numbers per token instead of 768, RMSNorm instead of LayerNorm, ReLU instead of GELU, and no biases or dropout. {BOS} marks the start and the end of a name.
       </p>
     </div>
   );

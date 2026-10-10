@@ -14,18 +14,20 @@ export type RibbonDef = {
   c1: string; // CSS var of the target colour
   op: number; // resting opacity (their constants/opacity.ts uses 0.4-0.8)
   pin?: "last"; // many sources -> one target: only the last source draws, aimed at the top of the target
+  thin?: number; // band thickness relative to the tiles (default 0.55)
+  // explicit source->target pairs instead of row i -> row i (attention: letter j feeds letter i)
+  pairs?: { s: number; t: number; op: number; th: number }[];
 };
 
 type Datum = { id: string; d: string; stage: number; row: number; c0: string; c1: string; op: number };
 
-const THIN = 0.92; // band thickness relative to the tile it leaves
-
 export function ribbonPath(
   a: { right: number; cy: number; h: number },
   b: { left: number; cy: number; h: number },
+  thin = 0.55,
 ) {
   const c = Math.max(16, (b.left - a.right) * 0.5);
-  const ha = (a.h * THIN) / 2, hb = (b.h * THIN) / 2;
+  const ha = (a.h * thin) / 2, hb = (b.h * thin) / 2;
   return `M${a.right},${a.cy - ha} C${a.right + c},${a.cy - ha} ${b.left - c},${b.cy - hb} ${b.left},${b.cy - hb}` +
     ` L${b.left},${b.cy + hb} C${b.left - c},${b.cy + hb} ${a.right + c},${a.cy + ha} ${a.right},${a.cy + ha} Z`;
 }
@@ -36,16 +38,23 @@ export function drawRibbons(svgEl: SVGSVGElement, container: HTMLElement, defs: 
   defs.forEach((def, di) => {
     const src = [...container.querySelectorAll(def.from)];
     const dst = [...container.querySelectorAll(def.to)];
-    src.forEach((s, i) => {
-      if (def.pin && i !== src.length - 1) return;
-      const t = def.pin ? dst[0] : dst[i];
-      if (!t) return;
-      const a = s.getBoundingClientRect(), b = t.getBoundingClientRect();
+    const box = (el: Element) => el.getBoundingClientRect();
+    const make = (sEl: Element, tEl: Element, k: number, row: number, op: number, th: number, pinTop = false) => {
+      const a = box(sEl), b = box(tEl);
       const A = { right: a.right - root.left, cy: a.top - root.top + a.height / 2, h: a.height };
-      const B = def.pin
+      const B = pinTop
         ? { left: b.left - root.left, cy: b.top - root.top + 24, h: a.height }
         : { left: b.left - root.left, cy: b.top - root.top + b.height / 2, h: b.height };
-      data.push({ id: `${di}-${i}`, d: ribbonPath(A, B), stage: def.stage, row: i, c0: def.c0, c1: def.c1, op: def.op });
+      data.push({ id: `${di}-${k}`, d: ribbonPath(A, B, th), stage: def.stage, row, c0: def.c0, c1: def.c1, op });
+    };
+    if (def.pairs) {
+      def.pairs.forEach((p, k) => { if (src[p.s] && dst[p.t]) make(src[p.s], dst[p.t], k, p.t, p.op, p.th); });
+      return;
+    }
+    src.forEach((sEl, i) => {
+      if (def.pin && i !== src.length - 1) return;
+      const t = def.pin ? dst[0] : dst[i];
+      if (t) make(sEl, t, i, i, def.op, def.thin ?? 0.55, !!def.pin);
     });
   });
 

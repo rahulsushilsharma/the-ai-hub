@@ -51,7 +51,7 @@ export default function Textbook({ tour, setTour, lessons, arch, onGoTrain }: {
         <Button size="icon" variant="ghost" className="size-7" onClick={() => setTour(null)} aria-label="Close textbook"><X /></Button>
       </header>
 
-      <div className="overflow-y-auto p-3 text-sm leading-relaxed text-muted-foreground">{l.body(arch)}</div>
+      <div className="space-y-2 overflow-y-auto p-3 text-sm leading-relaxed text-muted-foreground">{l.body(arch)}</div>
 
       <nav className="flex flex-wrap items-center gap-1.5 border-t p-3" aria-label="Pages">
         <Button size="sm" variant="outline" disabled={tour === 0} onClick={() => setTour(tour - 1)}><ChevronLeft /> Back</Button>

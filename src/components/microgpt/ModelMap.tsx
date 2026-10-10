@@ -21,7 +21,7 @@ gsap.registerPlugin(Flip);
 export type Expand = { layer: number; kind: "emb" | "attn" | "mlp" | "out" } | null;
 export type Scales = { norm: number; qkv: number; res: number; mlp: number; logit: number };
 
-const TW = 14; // tile width
+const TW = 18; // tile width
 const STEP_FULL = 0.5;
 const STEP_FAST = 0.15;
 
@@ -43,7 +43,7 @@ function TileCol({ m, label, hue, name, stage, vecs, scale, seq, hl, titleOf }: 
           className="flex items-center" style={{ height: m.rowH }}
           onMouseEnter={() => m.setFlow({ hoverToken: i })} onMouseLeave={() => m.setFlow({ hoverToken: null })}>
           <div data-n={name}>
-            <VectorCanvas v={v} scale={scale} hue={hue} seq={seq} hl={hl} vertical w={TW} h={m.rowH - 6} title={titleOf(i)} />
+            <VectorCanvas v={v} scale={scale} hue={hue} seq={seq} hl={hl} vertical w={TW} h={m.rowH - 10} title={titleOf(i)} className="shadow-sm" />
           </div>
         </div>
       ))}
@@ -59,18 +59,20 @@ function Block({ id, kind, title, extra, flex, dim, sel, onOpen, children, stack
   return (
     <div data-flip-id={id} role="button" tabIndex={0} aria-label={`Open ${TITLES[kind]}`} aria-expanded={sel}
       onClick={onOpen} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onOpen(); } }}
-      style={{ flex, "--hue": `var(${hue})` } as CSSProperties}
+      style={{
+        flex, "--hue": `var(${hue})`,
+        // one offset outline per extra head; shadows paint outside the box only, so ribbons inside stay visible
+        boxShadow: stack ? Array.from({ length: stack }, (_, k) => {
+          const o = (k + 1) * 4;
+          return `${o}px ${-o}px 0 -1px var(--card), ${o}px ${-o}px 0 0 color-mix(in oklab, var(--hue) ${30 - k * 8}%, transparent)`;
+        }).join(", ") : undefined,
+      } as CSSProperties}
       className={cn(
         "relative cursor-pointer rounded-xl px-3 pb-2 transition-[background-color,opacity,box-shadow] duration-300 outline-none",
         "hover:bg-[color-mix(in_oklab,var(--hue)_7%,transparent)] focus-visible:ring-2 focus-visible:ring-ring",
-        stack > 0 && "border border-[color-mix(in_oklab,var(--hue)_35%,transparent)] bg-card",
+        stack > 0 && "border border-[color-mix(in_oklab,var(--hue)_35%,transparent)]",
         dim && "opacity-25",
       )}>
-      {/* stacked cards behind attention: one per head */}
-      {Array.from({ length: stack }, (_, k) => (
-        <span key={k} aria-hidden className="pointer-events-none absolute inset-0 -z-10 rounded-xl border border-[color-mix(in_oklab,var(--hue)_25%,transparent)] bg-card"
-          style={{ transform: `translate(${(k + 1) * 5}px, ${-(k + 1) * 5}px)` }} />
-      ))}
       <div className="flex h-9 items-center gap-1.5 text-[13px] font-medium">
         <span className="size-2 shrink-0 rounded-full" style={{ background: `var(${hue})` }} />
         <span className="whitespace-nowrap">{title}</span>
@@ -104,7 +106,7 @@ export default function ModelMap({ rows, labels, vocabLabels, arch, temp, head, 
   const hd = Math.min(head, arch.nHead - 1);
   const dHead = arch.nEmbd / arch.nHead;
   const hl: [number, number] = [hd * dHead, hd * dHead + dHead];
-  const rowH = Math.round(Math.max(18, Math.min(30, 420 / Math.max(1, T))));
+  const rowH = Math.round(Math.max(26, Math.min(56, 400 / Math.max(1, T))));
   const reduced = typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   const lastStage = 3 * L + 3; // 0 letters, 1 embedding, 2+3l qkv, 3+3l attention, 4+3l mlp, 2+3L scores, 3+3L probabilities
   const zoneDim = (...z: Zone[]) => zones.length > 0 && !z.some((x) => zones.includes(x));
@@ -112,23 +114,25 @@ export default function ModelMap({ rows, labels, vocabLabels, arch, temp, head, 
 
   /* ---- ribbons: colour goes from the source stage to the target stage ---- */
   const defs = useMemo<RibbonDef[]>(() => {
-    const d: RibbonDef[] = [{ from: '[data-n="tok"]', to: '[data-n="emb"]', stage: 1, c0: HUE.emb, c1: HUE.emb, op: 0.35 }];
+    const d: RibbonDef[] = [{ from: '[data-n="tok"]', to: '[data-n="emb"]', stage: 1, c0: HUE.emb, c1: HUE.emb, op: 0.3, thin: 0.4 }];
     let prev = "emb", prevHue: string = HUE.emb;
     for (let l = 0; l < L; l++) {
       const s = 2 + 3 * l;
-      for (const k of ["q", "k", "v"] as const) d.push({ from: `[data-n="${prev}"]`, to: `[data-n="${k}-${l}"]`, stage: s, c0: prevHue, c1: HUE[k], op: 0.35 });
-      d.push({ from: `[data-n="q-${l}"]`, to: `[data-n="w-${l}"]`, stage: s + 1, c0: HUE.q, c1: HUE.attn, op: 0.3 });
-      d.push({ from: `[data-n="k-${l}"]`, to: `[data-n="w-${l}"]`, stage: s + 1, c0: HUE.k, c1: HUE.attn, op: 0.3 });
-      d.push({ from: `[data-n="w-${l}"]`, to: `[data-n="ao-${l}"]`, stage: s + 1, c0: HUE.attn, c1: HUE.attn, op: 0.45 });
-      d.push({ from: `[data-n="v-${l}"]`, to: `[data-n="ao-${l}"]`, stage: s + 1, c0: HUE.v, c1: HUE.attn, op: 0.25 });
-      d.push({ from: `[data-n="ao-${l}"]`, to: `[data-n="ma-${l}"]`, stage: s + 2, c0: HUE.attn, c1: HUE.mlp, op: 0.4 });
-      d.push({ from: `[data-n="ma-${l}"]`, to: `[data-n="mo-${l}"]`, stage: s + 2, c0: HUE.mlp, c1: HUE.mlp, op: 0.4 });
+      for (const k of ["q", "k", "v"] as const) d.push({ from: `[data-n="${prev}"]`, to: `[data-n="${k}-${l}"]`, stage: s, c0: prevHue, c1: HUE[k], op: 0.28, thin: 0.3 });
+      // value of letter j flows into the mix of every later letter i, as much as i attends to j
+      const pairs: RibbonDef["pairs"] = [];
+      rows.forEach((r, i) => r.layers[l].heads[hd].weights.forEach((w, j) => {
+        if (w > 0.02) pairs.push({ s: j, t: i, op: 0.12 + 0.75 * w, th: 0.08 + 0.7 * w });
+      }));
+      d.push({ from: `[data-n="v-${l}"]`, to: `[data-n="ao-${l}"]`, stage: s + 1, c0: HUE.v, c1: HUE.attn, op: 0, pairs });
+      d.push({ from: `[data-n="ao-${l}"]`, to: `[data-n="ma-${l}"]`, stage: s + 2, c0: HUE.attn, c1: HUE.mlp, op: 0.35, thin: 0.45 });
+      d.push({ from: `[data-n="ma-${l}"]`, to: `[data-n="mo-${l}"]`, stage: s + 2, c0: HUE.mlp, c1: HUE.mlp, op: 0.35, thin: 0.45 });
       prev = `mo-${l}`; prevHue = HUE.mlp;
     }
-    d.push({ from: `[data-n="${prev}"]`, to: '[data-n="logit"]', stage: 2 + 3 * L, c0: HUE.mlp, c1: HUE.out, op: 0.4 });
-    d.push({ from: '[data-n="logit"]', to: '[data-n="probs"]', stage: 3 + 3 * L, c0: HUE.out, c1: HUE.out, op: 0.45, pin: "last" });
+    d.push({ from: `[data-n="${prev}"]`, to: '[data-n="logit"]', stage: 2 + 3 * L, c0: HUE.mlp, c1: HUE.out, op: 0.35, thin: 0.45 });
+    d.push({ from: '[data-n="logit"]', to: '[data-n="probs"]', stage: 3 + 3 * L, c0: HUE.out, c1: HUE.out, op: 0.5, pin: "last", thin: 0.6 });
     return d;
-  }, [L]);
+  }, [L, rows, hd]);
 
   const redraw = useCallback(() => {
     if (root.current && svg.current) drawRibbons(svg.current, root.current, defs);
@@ -176,11 +180,11 @@ export default function ModelMap({ rows, labels, vocabLabels, arch, temp, head, 
       const at = s * step;
       const tiles = el.querySelectorAll(`[data-stage="${s}"]${lastSel}`);
       if (tiles.length) {
-        t.fromTo(tiles, { opacity: 0, scale: 0.6 },
-          { opacity: 1, scale: 1, duration: fast ? 0.2 : 0.35, ease: "back.out(2)", stagger: fast ? 0 : 0.02, clearProps: "transform" }, at + step * 0.4);
+        t.fromTo(tiles, { opacity: fast ? 0 : 0.18, scale: fast ? 0.6 : 0.9 },
+          { opacity: 1, scale: 1, duration: fast ? 0.2 : 0.4, ease: "back.out(2)", stagger: fast ? 0 : 0.015, clearProps: "opacity,transform" }, at + step * 0.4);
       }
       const ribs = el.querySelectorAll(`path.ribbon[data-stage="${s}"]${ribSel}`);
-      if (ribs.length) t.fromTo(ribs, { opacity: 0 }, { opacity: 1, duration: 0.25, ease: "sine.inOut" }, at);
+      if (ribs.length) t.fromTo(ribs, { opacity: fast ? 0 : 0.12 }, { opacity: 1, duration: 0.35, ease: "sine.inOut" }, at);
       const pulses = [...el.querySelectorAll<SVGPathElement>(`path.pulse[data-stage="${s}"]${ribSel}`)];
       if (pulses.length) {
         const stops = pulses.map((p) => [...el.querySelectorAll<SVGStopElement>(`#${p.dataset.grad} stop`)]);
@@ -199,12 +203,15 @@ export default function ModelMap({ rows, labels, vocabLabels, arch, temp, head, 
   }, [T, lastStage, reduced]);
 
   // full flow on first load; afterwards only the new letter's path (their isNextTokenOnly)
-  const first = useRef(true);
+  // (a letter removed or swapped: nothing new to show, so no animation)
+  const prev = useRef<{ sig: string; L: number } | null>(null);
   const sig = labels.join("");
   useEffect(() => {
     if (!T) return;
-    play(!first.current);
-    first.current = false;
+    const p = prev.current;
+    if (!p || p.L !== L) play(false);
+    else if (sig.length > p.sig.length && sig.startsWith(p.sig)) play(true);
+    prev.current = { sig, L };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sig, L]);
   const lastTick = useRef(replayTick);
@@ -257,7 +264,7 @@ export default function ModelMap({ rows, labels, vocabLabels, arch, temp, head, 
   if (!T) return null;
   const isSel = (kind: NonNullable<Expand>["kind"], layer = 0) => expanded?.kind === kind && expanded.layer === layer;
   const headNav = (
-    <span className="ml-1 inline-flex items-center gap-0.5 text-xs font-normal text-muted-foreground" onClick={(e) => e.stopPropagation()}>
+    <span className="ml-1 inline-flex items-center gap-0.5 whitespace-nowrap text-xs font-normal text-muted-foreground" onClick={(e) => e.stopPropagation()}>
       <button type="button" aria-label="Previous head" className="rounded p-0.5 hover:text-foreground disabled:opacity-30"
         disabled={hd === 0} onClick={() => setHead(hd - 1)}><ChevronLeft className="size-3.5" /></button>
       head {hd + 1} of {arch.nHead}
@@ -267,6 +274,8 @@ export default function ModelMap({ rows, labels, vocabLabels, arch, temp, head, 
   );
 
   return (
+    <>
+    <p className="mb-2 px-1 text-xs text-muted-foreground md:hidden">Swipe sideways to follow the letters through the model.</p>
     <div className="overflow-x-auto rounded-2xl border bg-card">
       <div ref={root} className="relative px-4 pb-4 pt-2" style={{ minWidth: 460 + L * 330, minHeight: minH || undefined }}>
         <svg ref={svg} className="pointer-events-none absolute left-0 top-0 z-0" aria-hidden />
@@ -289,7 +298,7 @@ export default function ModelMap({ rows, labels, vocabLabels, arch, temp, head, 
 
           <Block id="emb-0" kind="emb" title="Embedding" flex={0.45} sel={isSel("emb")} dim={zoneDim("tok", "pos", "sum")}
             onOpen={() => open({ kind: "emb", layer: 0 })}>
-            <TileCol m={m} label="vector" hue={HUE.emb} name="emb" stage={1} vecs={rows.map((r) => r.x0)} scale={scale.norm}
+            <TileCol m={m} label="numbers" hue={HUE.emb} name="emb" stage={1} vecs={rows.map((r) => r.x0)} scale={scale.norm}
               titleOf={(i) => `numbers for “${labels[i]}”`} />
           </Block>
 
@@ -304,17 +313,14 @@ export default function ModelMap({ rows, labels, vocabLabels, arch, temp, head, 
                   <TileCol m={m} label="Q" hue={HUE.q} name={`q-${l}`} stage={s} vecs={ly.map((x) => x.q)} scale={scale.qkv} hl={hl} titleOf={(i) => `query of “${labels[i]}”: what it looks for`} />
                   <TileCol m={m} label="K" hue={HUE.k} name={`k-${l}`} stage={s} vecs={ly.map((x) => x.k)} scale={scale.qkv} hl={hl} titleOf={(i) => `key of “${labels[i]}”: what it offers`} />
                   <TileCol m={m} label="V" hue={HUE.v} name={`v-${l}`} stage={s} vecs={ly.map((x) => x.v)} scale={scale.qkv} hl={hl} titleOf={(i) => `value of “${labels[i]}”: what it shares`} />
-                  <TileCol m={m} label="looks at" hue={HUE.attn} name={`w-${l}`} stage={s + 1} seq scale={1}
-                    vecs={ly.map((x) => Array.from({ length: T }, (_, j) => x.heads[hd].weights[j] ?? 0))}
-                    titleOf={(i) => `how much “${labels[i]}” looks at each earlier letter`} />
-                  <TileCol m={m} label="out" hue={HUE.attn} name={`ao-${l}`} stage={s + 1} vecs={ly.map((x) => x.res1)} scale={scale.res}
+                  <TileCol m={m} label="mixed" hue={HUE.attn} name={`ao-${l}`} stage={s + 1} vecs={ly.map((x) => x.res1)} scale={scale.res}
                     titleOf={(i) => `“${labels[i]}” after attention`} />
                 </Block>
                 <Block id={`mlp-${l}`} kind="mlp" title={`MLP${L > 1 ? ` ${l + 1}` : ""}`} flex={1} sel={isSel("mlp", l)} dim={zoneDim("mlp", "detail")}
                   onOpen={() => open({ kind: "mlp", layer: l })}>
-                  <TileCol m={m} label="neurons" hue={HUE.mlp} name={`ma-${l}`} stage={s + 2} seq vecs={ly.map((x) => x.mlpAct)} scale={scale.mlp}
+                  <TileCol m={m} label="neurons" hue={HUE.mlp} name={`ma-${l}`} stage={s + 2} seq vecs={ly.map((x) => x.mlpAct)} scale={scale.mlp * 0.5}
                     titleOf={(i) => `${ly[i].mlpAct.filter((a) => a > 0).length} of ${ly[i].mlpAct.length} neurons fire for “${labels[i]}”`} />
-                  <TileCol m={m} label="out" hue={HUE.mlp} name={`mo-${l}`} stage={s + 2} vecs={ly.map((x) => x.res2)} scale={scale.res}
+                  <TileCol m={m} label="result" hue={HUE.mlp} name={`mo-${l}`} stage={s + 2} vecs={ly.map((x) => x.res2)} scale={scale.res}
                     titleOf={(i) => `“${labels[i]}” after the MLP`} />
                 </Block>
               </div>
@@ -325,13 +331,13 @@ export default function ModelMap({ rows, labels, vocabLabels, arch, temp, head, 
             onOpen={() => open({ kind: "out", layer: 0 })}>
             <TileCol m={m} label="scores" hue={HUE.out} name="logit" stage={2 + 3 * L} vecs={rows.map((r) => r.logits)} scale={scale.logit}
               titleOf={(i) => `a score for every possible letter after “${labels[i]}”`} />
-            <div data-stage={3 + 3 * L} data-n="probs" className="mt-5 min-w-0 flex-1 pl-2">
-              <p className="mb-2 text-xs text-muted-foreground">Next after “{labels[T - 1]}”</p>
-              <ul className="space-y-1.5">
+            <div data-stage={3 + 3 * L} data-n="probs" className="mt-5 min-w-36 flex-1 pl-3">
+              <p className="mb-2.5 text-xs text-muted-foreground">Next after “{labels[T - 1]}”</p>
+              <ul className="space-y-2">
                 {probs.map(({ i, p }, n) => (
                   <li key={i} className="flex items-center gap-2 text-xs">
-                    <span className={cn("w-4 text-center font-mono text-sm", n === 0 && "font-bold")}>{vocabLabels[i]}</span>
-                    <span className="h-2.5 flex-1 rounded-full bg-muted">
+                    <span className={cn("w-5 text-center font-mono", n === 0 ? "text-lg font-bold" : "text-sm text-muted-foreground")}>{vocabLabels[i]}</span>
+                    <span className={cn("flex-1 rounded-full bg-muted", n === 0 ? "h-3.5" : "h-2.5")}>
                       <span className="block h-full rounded-full transition-[width] duration-300"
                         style={{ width: `${Math.max(2, p * 100)}%`, background: `color-mix(in oklab, var(${HUE.out}) ${n === 0 ? 100 : 55}%, var(--card))` }} />
                     </span>
@@ -362,5 +368,6 @@ export default function ModelMap({ rows, labels, vocabLabels, arch, temp, head, 
         )}
       </div>
     </div>
+    </>
   );
 }
