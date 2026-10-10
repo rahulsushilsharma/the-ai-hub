@@ -288,6 +288,8 @@ export default function Microgpt() {
                 <span className="text-xs text-muted-foreground">Same input, same architecture. Only the learned numbers differ.</span>
               </div>
             )}
+            {/* full-bleed: the model map needs the width to fit without sideways scrolling */}
+            <div className="relative left-1/2 w-[min(80rem,calc(100vw-2rem))] -translate-x-1/2">
             <Explainer
               rows={trace.length === prefixIds.length ? trace : []}
               labels={tokenLabels}
@@ -302,6 +304,7 @@ export default function Microgpt() {
               canExtend={prefixIds.length < arch.blockSize}
               onGoTrain={() => setTab("train")}
             />
+            </div>
             <section className="space-y-4 border-t pt-8">
               <h2 className="text-2xl font-semibold tracking-tight">What it learned</h2>
               <div className="grid gap-4 md:grid-cols-2">

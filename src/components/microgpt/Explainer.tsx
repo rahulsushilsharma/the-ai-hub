@@ -3,7 +3,12 @@ import { Slider } from "@/components/ui/slider";
 import { cn } from "@/lib/utils";
 import { animate } from "animejs";
 import { useEffect, useMemo, useRef, useState } from "react";
-import ModelMap from "./ModelMap";
+import { useFlow } from "@/lib/microgpt/flowStore";
+import { LESSONS, type Zone } from "./lessons";
+import AttentionStages from "./AttentionStages";
+import ModelMap, { type Expand } from "./ModelMap";
+import VectorCanvas from "./VectorCanvas";
+import Textbook from "./Textbook";
 import { BOS, type ArchCfg } from "./viz";
 
 /* ---------- trace types (mirrors MicroGPT.trace) ---------- */
@@ -88,51 +93,14 @@ function AttentionDetail({
 }) {
   const sec = (n: number) => cn("space-y-3 rounded-md transition-opacity duration-300", spot != null && (spot === n ? "ring-2 ring-primary/60 ring-offset-8 ring-offset-card" : "opacity-30"));
   const [hover, setHover] = useState<[number, number] | null>(null);
-  const T = rows.length;
   const d = arch.nEmbd / arch.nHead;
   const hl: [number, number] = [head * d, head * d + d];
   const L = rows.map((r) => r.layers[layer]);
   const scores = L.map((l) => l.heads[head].scores);
   const weights = L.map((l) => l.heads[head].weights);
-  const sMax = maxAbs(scores);
   const row = hover?.[0] ?? focus;
   const hovered = hover ? { i: hover[0], j: hover[1] } : null;
   const fl = L[row];
-
-  const matrix = (kind: "scores" | "weights") => (
-    <div className="inline-block">
-      <div className="grid gap-px font-mono text-[10px]" style={{ gridTemplateColumns: `auto repeat(${T}, minmax(0, 2.4rem))` }}>
-        <span />
-        {labels.map((l, j) => <span key={j} className="text-center text-muted-foreground">{l}</span>)}
-        {Array.from({ length: T }, (_, i) => (
-          <div key={i} className="contents">
-            <span className={cn("pr-1 text-right", i === row ? "font-bold text-primary" : "text-muted-foreground")}>{labels[i]}</span>
-            {Array.from({ length: T }, (_, j) =>
-              j > i ? (
-                <span key={j} title="Masked: a character may not look at the future"
-                  className="h-7 rounded-[3px] bg-[repeating-linear-gradient(45deg,transparent,transparent_3px,var(--border)_3px,var(--border)_4px)]" />
-              ) : (
-                <button
-                  key={j} type="button"
-                  onMouseEnter={() => setHover([i, j])} onMouseLeave={() => setHover(null)}
-                  onFocus={() => setHover([i, j])} onBlur={() => setHover(null)}
-                  onClick={() => setFocus(i)}
-                  aria-label={`${labels[i]} looks at ${labels[j]}: score ${scores[i][j].toFixed(2)}, weight ${(weights[i][j] * 100).toFixed(0)}%`}
-                  className={cn("grid h-7 place-items-center rounded-[3px] border text-[10px] text-foreground",
-                    hovered?.i === i && hovered.j === j ? "border-primary" : "border-transparent")}
-                  style={{
-                    background: kind === "scores" ? cellColor(scores[i][j], sMax) : `color-mix(in oklab, var(--primary) ${(weights[i][j] * 100).toFixed(0)}%, var(--card))`,
-                  }}
-                >
-                  {kind === "scores" ? scores[i][j].toFixed(1) : Math.round(weights[i][j] * 100)}
-                </button>
-              ),
-            )}
-          </div>
-        ))}
-      </div>
-    </div>
-  );
 
   return (
     <div className="space-y-8">
@@ -154,13 +122,13 @@ function AttentionDetail({
         <div className="overflow-x-auto">
           <div className="grid w-max grid-cols-[auto_repeat(3,auto)] items-center gap-x-4 gap-y-1">
             <span />
-            {["Query", "Key", "Value"].map((t) => <span key={t} className="text-xs font-semibold">{t}</span>)}
+            {([["Query", "--mg-q"], ["Key", "--mg-k"], ["Value", "--mg-v"]] as const).map(([t, c]) => <span key={t} className="text-xs font-semibold" style={{ color: `var(${c})` }}>{t}</span>)}
             {L.map((l, i) => (
               <div key={i} className="contents">
                 <span className={cn(i === row && "text-primary")}><Chip tone={i === row ? "primary" : undefined}>{labels[i]}</Chip></span>
-                <Strip v={l.q} scale={scale.qkv} hl={hl} />
-                <Strip v={l.k} scale={scale.qkv} hl={hl} />
-                <Strip v={l.v} scale={scale.qkv} hl={hl} />
+                <VectorCanvas v={l.q} scale={scale.qkv} hl={hl} hue="--mg-q" w={112} h={18} />
+                <VectorCanvas v={l.k} scale={scale.qkv} hl={hl} hue="--mg-k" w={112} h={18} />
+                <VectorCanvas v={l.v} scale={scale.qkv} hl={hl} hue="--mg-v" w={112} h={18} />
               </div>
             ))}
           </div>
@@ -174,10 +142,7 @@ function AttentionDetail({
           Higher score = better match. The hatched area is <b>masked</b>: a GPT may never peek at letters that come later.
           Softmax then turns each row into percentages that add up to 100%.
         </Note>
-        <div className="flex flex-wrap items-start gap-x-10 gap-y-6">
-          <div><p className="mb-1 font-mono text-xs text-muted-foreground">scores (query · key)</p>{matrix("scores")}</div>
-          <div><p className="mb-1 font-mono text-xs text-muted-foreground">attention weights (% per row)</p>{matrix("weights")}</div>
-        </div>
+        <AttentionStages L={L} head={head} d={d} hl={hl} labels={labels} row={row} hover={hover} setHover={setHover} setFocus={setFocus} qkvScale={scale.qkv} />
         <p className="min-h-5 font-mono text-xs text-muted-foreground" aria-live="polite">
           {hovered
             ? `q[“${labels[hovered.i]}”] · k[“${labels[hovered.j]}”] / √${d} = ${scores[hovered.i][hovered.j].toFixed(2)}  →  softmax  →  ${(weights[hovered.i][hovered.j] * 100).toFixed(0)}% of “${labels[hovered.i]}”’s attention goes to “${labels[hovered.j]}”`
@@ -227,6 +192,40 @@ function AttentionDetail({
   );
 }
 
+/* ---------- embedding detail ---------- */
+
+function EmbeddingDetail({ rows, labels, vocabLabels, scale }: {
+  rows: Trace[]; labels: string[]; vocabLabels: string[]; scale: { emb: number; pos: number; norm: number };
+}) {
+  const W = 132;
+  return (
+    <div className="space-y-4">
+      <Note title="Letters become numbers">
+        Each letter has an id. The id picks a learned row of numbers (<b>token embedding</b>). A second learned row says
+        <b> where</b> the letter sits (<b>position embedding</b>), because attention alone has no sense of order. The two
+        are added and rescaled. That vector is what the rest of the model sees.
+      </Note>
+      <div className="overflow-x-auto">
+        <div className="grid w-max grid-cols-[auto_auto_auto_auto_auto_auto_auto] items-center gap-x-3 gap-y-1.5 font-mono text-xs">
+          <span /><span className="text-muted-foreground">id</span><span className="text-muted-foreground">letter</span><span />
+          <span className="text-muted-foreground">position</span><span /><span className="text-muted-foreground">sum, rescaled</span>
+          {rows.map((r, i) => (
+            <div key={i} className="contents">
+              <span className="text-right text-sm font-semibold">{labels[i]}</span>
+              <span className="w-6 text-right text-muted-foreground">{vocabLabels.indexOf(labels[i])}</span>
+              <VectorCanvas v={r.tokEmb} scale={scale.emb} hue="--mg-emb" w={W} h={16} title={`token embedding of ${labels[i]}`} />
+              <span className="text-muted-foreground">+</span>
+              <VectorCanvas v={r.posEmb} scale={scale.pos} w={W} h={16} title={`position ${i}`} />
+              <span className="text-muted-foreground">=</span>
+              <VectorCanvas v={r.x0} scale={scale.norm} hue="--mg-emb" w={W} h={16} title={`what enters attention for ${labels[i]}`} />
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /* ---------- MLP detail ---------- */
 
 /** One bar per hidden neuron: above the line = fires, below = ReLU switches it off. */
@@ -241,7 +240,7 @@ function NeuronBars({ pre }: { pre: number[] }) {
         const h = (Math.abs(a) / m) * (H - 2);
         return (
           <rect key={i} x={i * 4 + 0.5} width="3" y={a > 0 ? H - h : H} height={Math.max(0.5, h)}
-            className={a > 0 ? "fill-primary" : "fill-muted-foreground/40"}>
+            className={a > 0 ? "fill-[var(--mg-mlp)]" : "fill-muted-foreground/40"}>
             <title>{`neuron ${i}: ${a.toFixed(2)}${a > 0 ? " (fires)" : " (zeroed by ReLU)"}`}</title>
           </rect>
         );
@@ -456,88 +455,6 @@ function OutputPanel({ logits, finalVec, vocabLabels, labelFor, temp, setTemp, r
   );
 }
 
-/* ---------- guided tour ---------- */
-
-type Zone = "input" | "tok" | "pos" | "sum" | "attn" | "mlp" | "out" | "detail" | "panel";
-type Lesson = {
-  title: string;
-  zones: Zone[]; // parts of the canvas to keep lit; everything else dims. Empty = nothing dimmed.
-  scroll: "input" | "overview" | "detail" | "panel";
-  open?: "attn" | "mlp";
-  spot?: number; // numbered attention section to emphasise
-  flow?: boolean; // play the data-flow animation on entry
-  body: (a: ArchCfg) => React.ReactNode;
-};
-
-const LESSONS: Lesson[] = [
-  {
-    title: "What is a transformer?", zones: [], scroll: "input", flow: true,
-    body: (a) => <>A GPT answers one question over and over: <i>“given the characters so far, what is the most likely next one?”</i> Text
-      from ChatGPT is built the same way, one piece at a time. This is a tiny one: {a.nLayer} layer{a.nLayer > 1 ? "s" : ""}, {a.nHead} attention
-      head{a.nHead > 1 ? "s" : ""}, {a.nEmbd} numbers per character. Watch the wave: each row is a character flowing through it.</>,
-  },
-  {
-    title: "1 · Characters become tokens", zones: ["input", "tok"], scroll: "input",
-    body: () => <>Computers need numbers, so every character gets an id (a <b>token</b>). A special ⏎ token marks the start. The model
-      sees the sequence <b>⏎ + your letters</b>, and it predicts what follows at <i>every</i> position at once.</>,
-  },
-  {
-    title: "2 · Embeddings", zones: ["tok", "pos", "sum"], scroll: "overview",
-    body: (a) => <>Each token id looks up a learned list of <b>{a.nEmbd} numbers</b>, its embedding. A second lookup encodes <b>where</b> it sits in
-      the sequence, since attention alone has no sense of order. The two are added and rescaled (RMSNorm). That vector is what enters the
-      first block.</>,
-  },
-  {
-    title: "3 · Query, key, value", zones: ["attn", "detail"], scroll: "detail", open: "attn", spot: 1,
-    body: () => <>Self-attention lets characters look at each other. Each vector is turned into three: a <b>query</b> (what I am looking for),
-      a <b>key</b> (what I contain) and a <b>value</b> (what I will share). Like searching the web: query = your search text, key = page
-      title, value = page content.</>,
-  },
-  {
-    title: "4 · Scores, mask and softmax", zones: ["attn", "detail"], scroll: "detail", open: "attn", spot: 2,
-    body: () => <>Each query is compared with every key. A high score means a good match. The <b>mask</b> forbids looking at later
-      characters, because at generation time they do not exist yet. Softmax turns each row into percentages. Hover a cell to see the exact
-      arithmetic.</>,
-  },
-  {
-    title: "5 · Mixing values", zones: ["attn", "detail"], scroll: "detail", open: "attn", spot: 3,
-    body: () => <>The new vector for a character is a <b>weighted blend of value vectors</b>: letters it paid more attention to contribute
-      more. Click different rows of the matrix to see how each character builds its own mix.</>,
-  },
-  {
-    title: "6 · Heads, output projection, residual", zones: ["attn", "detail"], scroll: "detail", open: "attn", spot: 4,
-    body: (a) => <>{a.nHead} head{a.nHead > 1 ? "s run" : " runs"} in parallel, each free to learn a different habit. Their outputs are joined and
-      projected by a learned matrix, then <b>added back to the input</b> (a residual connection), so the original information is never lost.</>,
-  },
-  {
-    title: "7 · The MLP", zones: ["mlp", "detail"], scroll: "detail", open: "mlp",
-    body: (a) => <>Attention moved information <i>between</i> characters. The MLP now thinks about each one <i>on its own</i>: widen to {4 * a.nEmbd}
-      neurons, switch negatives off with ReLU, narrow back to {a.nEmbd}. The bars show which neurons fire for this character.</>,
-  },
-  {
-    title: "8 · Stacking and stabilising", zones: ["attn", "mlp"], scroll: "overview",
-    body: (a) => <>Attention + MLP form one <b>block</b>{a.nLayer > 1 ? `; this model stacks ${a.nLayer} of them, each refining the last` : "; real models stack dozens"}.
-      Two helpers keep deep stacks trainable: <b>RMSNorm</b> rescales numbers before each step, and <b>residual connections</b> add each
-      step’s result onto its input. (Large models also use dropout during training; this one does not.)</>,
-  },
-  {
-    title: "9 · Output scores", zones: ["out", "panel"], scroll: "panel",
-    body: (a) => <>The last vector is multiplied by one more matrix to give a <b>score for each possible next character</b> ({a.nEmbd} numbers →
-      one per vocabulary entry). Higher means “more likely”. These raw scores are called logits.</>,
-  },
-  {
-    title: "10 · Choosing: temperature, top-k, top-p", zones: ["panel"], scroll: "panel",
-    body: () => <><b>Softmax</b> converts scores to probabilities. <b>Temperature</b> sharpens (low) or flattens (high) them. <b>Top-k</b> and
-      <b> top-p</b> cut off the unlikely tail before a random pick. Press <b>Spin</b>, then append the character and watch the whole table
-      recompute for the next step: that is how text is generated.</>,
-  },
-  {
-    title: "11 · Where do the numbers come from?", zones: [], scroll: "input",
-    body: () => <>Every matrix you saw was <b>learned</b>. Right now, if the model is untrained, the weights are random and the picture is
-      meaningless. Train it in the Lab, then come back with the same input and compare attention, embeddings and predictions.</>,
-  },
-];
-
 /* ---------- main ---------- */
 
 export default function Explainer({
@@ -548,14 +465,14 @@ export default function Explainer({
   prefix: string; setPrefix: (p: string) => void; examples: string[];
   trained: number; canExtend: boolean; onGoTrain: () => void;
 }) {
-  const [open, setOpen] = useState<{ layer: number; kind: "attn" | "mlp" } | null>({ layer: 0, kind: "attn" });
+  const [open, setOpen] = useState<Expand>(null);
+  const [note, setNote] = useState<string | null>(null);
   const [head, setHead] = useState(0);
   const [focus, setFocus] = useState<number | null>(null);
   const [hot, setHot] = useState<number | null>(null);
   const [tour, setTour] = useState<number | null>(null);
   const [deep, setDeep] = useState(false);
   const canvas = useRef<HTMLDivElement>(null);
-  const detailRef = useRef<HTMLDivElement>(null);
   const flowAnim = useRef<{ pause: () => void } | null>(null);
   const lesson = tour != null ? LESSONS[tour] : null;
   // spotlight: lit zones get a ring, the rest dim. A lesson with no zones dims nothing.
@@ -588,20 +505,12 @@ export default function Explainer({
     const l = LESSONS[tour];
     if (l.open) setOpen((o) => ({ layer: Math.min(o?.layer ?? 0, arch.nLayer - 1), kind: l.open! }));
     const id = setTimeout(() => {
-      document.getElementById(`zone-${l.scroll}`)?.scrollIntoView({ behavior: reduced() ? "auto" : "smooth", block: "center" });
-      if (l.flow) playFlow();
+      (document.getElementById(`zone-${l.scroll}`) ?? document.getElementById("zone-map"))?.scrollIntoView({ behavior: reduced() ? "auto" : "smooth", block: "center" });
+      if (l.flow) { playFlow(); useFlow.getState().replay(); }
     }, 60);
     return () => clearTimeout(id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tour]);
-
-  // opened block slides/fades in
-  useEffect(() => {
-    const el = detailRef.current;
-    if (!el || reduced()) return;
-    const a = animate(el, { opacity: [0, 1], translateY: [-12, 0], duration: 380, ease: "out(3)" });
-    return () => { a.pause(); };
-  }, [open?.layer, open?.kind]);
 
   const T = rows.length;
   const row = Math.min(focus ?? T - 1, T - 1);
@@ -634,101 +543,80 @@ export default function Explainer({
     return { ch: vocabLabels[i], p: e[i] / s };
   };
 
+  const generate = () => {
+    const p = softmaxT(last.logits, temp);
+    let r = Math.random(), idx = p.length - 1;
+    for (let i = 0; i < p.length; i++) { r -= p[i]; if (r <= 0) { idx = i; break; } }
+    if (idx === vocabLabels.length - 1) setNote(`The model picked ${BOS}: it thinks the name ends here.`);
+    else { setNote(null); setPrefix(prefix + vocabLabels[idx]); setFocus(null); }
+  };
+
+  const detail = !open ? null
+    : open.kind === "attn" ? (
+      <AttentionDetail layer={open.layer} rows={rows} labels={labels} arch={arch} head={Math.min(head, arch.nHead - 1)}
+        setHead={setHead} focus={row} setFocus={setFocus} scale={scale} spot={lesson?.open === "attn" ? lesson.spot ?? null : null} />
+    ) : open.kind === "mlp" ? (
+      <MlpDetail layer={open.layer} rows={rows} labels={labels} row={row} scale={scale} />
+    ) : open.kind === "emb" ? (
+      <EmbeddingDetail rows={rows} labels={labels} vocabLabels={vocabLabels} scale={scale} />
+    ) : (
+      <OutputPanel logits={last.logits} finalVec={finalVec(last)} vocabLabels={vocabLabels} labelFor={labels[T - 1]}
+        temp={temp} setTemp={setTemp} resScale={scale.res} logitScale={scale.logit}
+        onAppend={(i) => { setPrefix(prefix + vocabLabels[i]); setFocus(null); }} />
+    );
+
   const Head = ({ children }: { children: React.ReactNode }) => (
     <div className="mb-1 font-mono text-[10px] leading-tight text-muted-foreground" style={{ width: w }}>{children}</div>
   );
 
   return (
     <div className="space-y-8">
-      {/* guided tour card */}
-      {lesson && tour != null && (
-        <div className="sticky top-20 z-30 rounded-lg border-2 border-primary/60 bg-card/95 p-4 shadow-lg backdrop-blur md:top-24" role="region" aria-label="Guided tour">
-          <div className="flex items-start justify-between gap-3">
-            <div>
-              <p className="font-mono text-[10px] text-primary">GUIDED TOUR · {tour + 1} / {LESSONS.length}</p>
-              <h3 className="text-base font-semibold">{lesson.title}</h3>
-            </div>
-            <Button size="sm" variant="ghost" onClick={() => setTour(null)}>Exit tour</Button>
-          </div>
-          <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{lesson.body(arch)}</p>
-          <div className="mt-3 flex flex-wrap items-center gap-2">
-            <Button size="sm" variant="outline" disabled={tour === 0} onClick={() => setTour(tour - 1)}>Back</Button>
-            {tour < LESSONS.length - 1 ? (
-              <Button size="sm" onClick={() => setTour(tour + 1)}>Next</Button>
-            ) : (
-              <Button size="sm" onClick={() => { setTour(null); onGoTrain(); }}>Train it in the Lab</Button>
-            )}
-            <Button size="sm" variant="ghost" onClick={playFlow}>▶ Replay flow</Button>
-            <div className="ml-auto flex gap-1" aria-hidden>
-              {LESSONS.map((_, i) => (
-                <span key={i} className={cn("size-1.5 rounded-full", i === tour ? "bg-primary" : "bg-muted-foreground/30")} />
-              ))}
-            </div>
-          </div>
-        </div>
-      )}
+      <Textbook tour={tour} setTour={setTour} lessons={LESSONS} arch={arch} onGoTrain={onGoTrain} />
 
-      {/* input */}
-      <div id="zone-input" className={cn("rounded-md border bg-card p-4 transition-opacity duration-300", zc("input"))}>
-        <label htmlFor="ex-input" className="text-sm font-semibold">Give the model the start of a name</label>
-        <div className="mt-2 flex flex-wrap items-center gap-2">
-          <input id="ex-input" value={prefix} maxLength={arch.blockSize - 1} spellCheck={false} placeholder="e.g. mar"
-            onChange={(e) => { setPrefix(e.target.value); setFocus(null); }}
-            className="h-9 w-40 rounded-md border bg-transparent px-3 font-mono text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring" />
+      {/* top bar: input, generate, temperature, textbook */}
+      <div id="zone-input" className={cn("flex flex-wrap items-center gap-x-3 gap-y-2 rounded-2xl border bg-card px-4 py-3 transition-opacity duration-300", zc("input"))}>
+        <label htmlFor="ex-input" className="text-sm font-medium">Start of a name</label>
+        <input id="ex-input" value={prefix} maxLength={arch.blockSize - 1} spellCheck={false} placeholder="e.g. mar"
+          onChange={(e) => { setPrefix(e.target.value); setFocus(null); setNote(null); }}
+          className="h-9 w-36 rounded-md border bg-background px-3 font-mono text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring" />
+        <div className="flex flex-wrap gap-1">
           {examples.map((x) => (
-            <Button key={x} size="sm" variant="outline" onClick={() => { setPrefix(x); setFocus(null); }}>{x}</Button>
+            <Button key={x} size="sm" variant="ghost" className="font-mono" onClick={() => { setPrefix(x); setFocus(null); setNote(null); }}>{x}</Button>
           ))}
-          {tour == null && <Button size="sm" className="ml-auto" onClick={() => setTour(0)}>Start guided tour</Button>}
         </div>
-        <p className="mt-2 text-xs text-muted-foreground">
-          Watch it work below. ⏎ marks the start.
-          {trained === 0 && (
-            <> Untrained: random weights, so patterns look meaningless.{" "}
-              <button type="button" className="text-primary underline underline-offset-2" onClick={onGoTrain}>Train it</button>, then return to see how the same input changes.</>
-          )}
-        </p>
-        {!canExtend && <p className="mt-1 text-xs text-muted-foreground">Context limit reached ({arch.blockSize} tokens).</p>}
+        <Button size="sm" onClick={generate} disabled={!canExtend}>Generate next letter</Button>
+        <label className="flex w-44 items-center gap-2 text-xs text-muted-foreground">
+          <span>Temperature</span>
+          <Slider min={0.1} max={2} step={0.1} value={[temp]} onValueChange={([v]) => setTemp(v)} aria-label="Temperature" />
+          <span className="w-6 tabular-nums text-foreground">{temp.toFixed(1)}</span>
+        </label>
+        <div className="ml-auto flex gap-1">
+          <Button size="sm" variant="outline" onClick={() => useFlow.getState().replay()}>Replay</Button>
+          <Button size="sm" variant="outline" onClick={() => setTour(tour ?? 0)}>Textbook</Button>
+        </div>
       </div>
-
-      {/* the whole model on one canvas */}
-      <ModelMap rows={rows} labels={labels} vocabLabels={vocabLabels} arch={arch} temp={temp}
-        open={open} setOpen={setOpen} head={head} setHead={setHead} focus={row} setFocus={setFocus} scale={scale} />
-
-      {/* detail */}
-      {open && (
-        <div id="zone-detail" ref={detailRef} className={cn("rounded-md border bg-card p-4 transition-opacity duration-300", zc("detail"))}>
-          {open.kind === "attn" ? (
-            <AttentionDetail layer={open.layer} rows={rows} labels={labels} arch={arch} head={Math.min(head, arch.nHead - 1)}
-              setHead={setHead} focus={row} setFocus={setFocus} scale={scale} spot={lesson?.open === "attn" ? lesson.spot ?? null : null} />
-          ) : (
-            <MlpDetail layer={open.layer} rows={rows} labels={labels} row={row} scale={scale} />
-          )}
-        </div>
+      {(note || trained === 0 || !canExtend) && (
+        <p className="-mt-5 px-1 text-xs text-muted-foreground" aria-live="polite">
+          {note ?? (!canExtend ? `Context limit reached (${arch.blockSize} letters).` : <>Untrained: the weights are random, so the patterns mean nothing yet.{" "}
+            <button type="button" className="text-primary underline underline-offset-2" onClick={onGoTrain}>Train it</button> and come back.</>)}
+        </p>
       )}
 
-      {/* output */}
-      <div id="zone-panel" className={cn("rounded-md transition-opacity duration-300", zc("panel"))}>
-        <OutputPanel
-          logits={last.logits}
-          finalVec={finalVec(last)}
-          vocabLabels={vocabLabels}
-          labelFor={labels[T - 1]}
-          temp={temp}
-          setTemp={setTemp}
-          resScale={scale.res}
-          logitScale={scale.logit}
-          onAppend={(i) => { setPrefix(prefix + vocabLabels[i]); setFocus(null); }}
-        />
+      {/* the whole model, details open in place */}
+      <div id="zone-map">
+        <ModelMap rows={rows} labels={labels} vocabLabels={vocabLabels} arch={arch} temp={temp}
+          head={head} setHead={setHead} focus={row} setFocus={setFocus} scale={scale}
+          zones={lesson?.zones ?? []} expanded={open} setExpanded={setOpen} detail={detail} />
       </div>
 
-      <button type="button" onClick={() => setDeep((d) => !d)} aria-expanded={deep || tour != null}
+      <button type="button" onClick={() => setDeep((d) => !d)} aria-expanded={deep}
         className="w-full rounded-md border border-dashed px-4 py-3 text-left text-sm text-muted-foreground transition-colors hover:border-primary hover:text-foreground">
-        <b className="text-foreground">{deep || tour != null ? "▾" : "▸"} Deep dive: every number, row by row</b>
+        <b className="text-foreground">{deep ? "▾" : "▸"} Deep dive: every number, row by row</b>
         <span className="ml-2 text-xs">Raw vectors for each character at each step.</span>
       </button>
 
       {/* overview (deep dive) */}
-      {(deep || tour != null) && (
+      {deep && (
       <div id="zone-overview" ref={canvas}>
         <div className="mb-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
           <span>Each row is one character travelling through the model, left to right.</span>
